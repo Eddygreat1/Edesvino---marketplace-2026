@@ -531,10 +531,11 @@ async function startServer() {
     res.redirect("/seller/dashboard/" + seller.id);
   });
 
-  app.listen(PORT, () => {
-    console.log(`Edesvino Marketplace is running on port ${PORT}`);
-  });
-}
+  
+    app.listen(PORT, () => {
+  console.log(`Edesvino Marketplace is running on port ${PORT}`);
+});
+  
 
 startServer().catch(error => {
   console.error("Failed to start Edesvino Marketplace:", error);
