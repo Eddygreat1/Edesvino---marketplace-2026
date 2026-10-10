@@ -333,28 +333,46 @@ async function startServer() {
     `));
   });
 
+  
+  
   // REGISTER SELLER
   app.post("/seller/register", (req, res) => {
-    db.run(
-      `INSERT INTO sellers
-       (fullName, store, email, phone)
-       VALUES (?, ?, ?, ?)`,
-      [
-        req.body.fullName,
-        req.body.store,
-        req.body.email,
-        req.body.phone
-      ]
-    );
+    try {
+      db.run(
+        `INSERT INTO sellers
+         (fullName, store, email, phone)
+         VALUES (?, ?, ?, ?)`,
+        [
+          req.body.fullName,
+          req.body.store,
+          req.body.email,
+          req.body.phone
+        ]
+      );
 
-    saveDatabase();
+      const rows = getRows(
+        "SELECT last_insert_rowid() AS id"
+      );
 
-    const rows = getRows(
-      "SELECT last_insert_rowid() AS id"
-    );
+      const sellerId = Number(rows[0]?.id);
 
-    res.redirect("/seller/success/" + rows[0].id);
+      if (!sellerId) {
+        return res.status(500).send(
+          "Registration failed. Please try again."
+        );
+      }
+
+      saveDatabase();
+
+      res.redirect("/seller/success/" + sellerId);
+    } catch (error) {
+      console.error("Seller registration failed:", error);
+      res.status(500).send(
+        "Seller registration failed. Please try again."
+      );
+    }
   });
+  
 
   // SELLER SUCCESS
   app.get("/seller/success/:id", (req, res) => {
