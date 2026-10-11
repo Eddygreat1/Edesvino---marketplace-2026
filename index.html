@@ -6,53 +6,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#111827">
   <title>Edesvino Marketplace</title>
-
   <style>
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #f3f4f6;
       color: #1f2937;
     }
-
     header {
       background: #111827;
       color: white;
       padding: 24px 16px;
       text-align: center;
     }
-
     header h1 { margin: 0 0 8px; }
     header p { margin: 0; }
-
     .container {
       max-width: 1100px;
       margin: auto;
       padding: 20px 16px;
     }
-
     .intro, .status {
       background: white;
       padding: 18px;
       border-radius: 12px;
       margin-bottom: 20px;
     }
-
     .products {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 18px;
     }
-
     .product {
       background: white;
       border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 2px 8px #00000010;
     }
-
     .product img {
       width: 100%;
       height: 190px;
@@ -60,7 +51,6 @@
       background: #fff;
       padding: 10px;
     }
-
     .product-info { padding: 16px; }
     .product h3 { margin-top: 0; }
     .price {
@@ -68,12 +58,10 @@
       font-weight: bold;
       color: #047857;
     }
-
     .muted {
       color: #6b7280;
       font-size: 14px;
     }
-
     button {
       width: 100%;
       padding: 12px;
@@ -83,16 +71,7 @@
       color: white;
       font-size: 16px;
     }
-
-    button:disabled {
-      background: #9ca3af;
-    }
-
-    .retry {
-      width: auto;
-      cursor: pointer;
-    }
-
+    button:disabled { background: #9ca3af; }
     footer {
       text-align: center;
       padding: 25px;
@@ -100,7 +79,6 @@
     }
   </style>
 </head>
-
 <body>
   <header>
     <h1>Edesvino Marketplace</h1>
@@ -123,13 +101,12 @@
   <footer>Edesvino Marketplace &copy; 2026</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <script>
     const SUPABASE_URL =
       "https://lxszilqypuglxyfyukdg.supabase.co";
 
     const SUPABASE_PUBLISHABLE_KEY =
-      "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE";
+      "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
     const statusBox = document.getElementById("status");
     const productsBox = document.getElementById("products");
@@ -165,15 +142,6 @@
     async function loadProducts() {
       productsBox.replaceChildren();
       statusBox.textContent = "Loading products...";
-
-      if (
-        SUPABASE_PUBLISHABLE_KEY ===
-        "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE"
-      ) {
-        statusBox.textContent =
-          "Setup required: add your Supabase publishable key to index.html.";
-        return;
-      }
 
       if (!window.supabase) {
         statusBox.textContent =
@@ -235,7 +203,6 @@
 
       } catch (error) {
         console.error("Marketplace loading error:", error);
-
         statusBox.textContent =
           "Products could not be loaded. Check your Supabase connection, table columns, and Row Level Security (RLS) read policy. Your existing data has not been changed.";
       }
