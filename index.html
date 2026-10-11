@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Edesvino Marketplace</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px 16px;
+    }
+
+    .intro, .status {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .product {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px #00000010;
+    }
+
+    .product img {
+      width: 100%;
+      height: 190px;
+      object-fit: contain;
+      background: #fff;
+      padding: 10px;
+    }
+
+    .product-info { padding: 16px; }
+    .product h3 { margin-top: 0; }
+    .price {
+      font-size: 21px;
+      font-weight: bold;
+      color: #047857;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 7px;
+      background: #111827;
+      color: white;
+      font-size: 16px;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+    }
+
+    .retry {
+      width: auto;
+      cursor: pointer;
+    }
+
+    footer {
+      text-align: center;
+      padding: 25px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Edesvino Marketplace</h1>
+    <p>Buy and sell products online</p>
+  </header>
+
+  <main class="container">
+    <section class="intro">
+      <h2>Welcome to Edesvino</h2>
+      <p>Explore products from our marketplace.</p>
+    </section>
+
+    <section class="status" id="status" aria-live="polite">
+      Connecting to the marketplace...
+    </section>
+
+    <section class="products" id="products"></section>
+  </main>
+
+  <footer>Edesvino Marketplace &copy; 2026</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL =
+      "https://lxszilqypuglxyfyukdg.supabase.co";
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE";
+
+    const statusBox = document.getElementById("status");
+    const productsBox = document.getElementById("products");
+
+    function safeText(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function validImageUrl(value) {
+      try {
+        const url = new URL(value);
+        return ["https:", "http:"].includes(url.protocol)
+          ? url.href
+          : "";
+      } catch {
+        return "";
+      }
+    }
+
+    function money(value) {
+      const amount = Number(value);
+      return Number.isFinite(amount)
+        ? "₦" + amount.toLocaleString("en-NG")
+        : "Price unavailable";
+    }
+
+    async function loadProducts() {
+      productsBox.replaceChildren();
+      statusBox.textContent = "Loading products...";
+
+      if (
+        SUPABASE_PUBLISHABLE_KEY ===
+        "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE"
+      ) {
+        statusBox.textContent =
+          "Setup required: add your Supabase publishable key to index.html.";
+        return;
+      }
+
+      if (!window.supabase) {
+        statusBox.textContent =
+          "The connection library could not load. Check your internet connection and try again.";
+        return;
+      }
+
+      try {
+        const client = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY
+        );
+
+        const { data, error } = await client
+          .from("products")
+          .select("*")
+          .order("id", { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          statusBox.textContent =
+            "No products are visible yet. Check your products table and Supabase read permissions.";
+          return;
+        }
+
+        data.forEach(product => {
+          const card = document.createElement("article");
+          card.className = "product";
+
+          const imageUrl = validImageUrl(product.image_url);
+          const storeName =
+            product.store_name || product.store || "";
+
+          card.innerHTML = `
+            ${imageUrl
+              ? `<img src="${safeText(imageUrl)}"
+                   alt="${safeText(product.name)}"
+                   loading="lazy">`
+              : ""}
+            <div class="product-info">
+              <h3>${safeText(product.name || "Unnamed product")}</h3>
+              <p class="price">${money(product.price)}</p>
+              <p>${safeText(product.description || "")}</p>
+              ${storeName
+                ? `<p class="muted">Store: ${safeText(storeName)}</p>`
+                : ""}
+              <button type="button" disabled>
+                Ordering setup coming next
+              </button>
+            </div>
+          `;
+
+          productsBox.appendChild(card);
+        });
+
+        statusBox.textContent =
+          `Marketplace connected. ${data.length} product(s) loaded.`;
+
+      } catch (error) {
+        console.error("Marketplace loading error:", error);
+
+        statusBox.textContent =
+          "Products could not be loaded. Check your Supabase connection, table columns, and Row Level Security (RLS) read policy. Your existing data has not been changed.";
+      }
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
