@@ -223,28 +223,49 @@ async function startServer() {
     `));
   });
 
+
   // SUBMIT ORDER
   app.post("/order", (req, res) => {
-    db.run(
-      `INSERT INTO orders
-       (productId, fullName, phone, address)
-       VALUES (?, ?, ?, ?)`,
-      [
-        req.body.productId || null,
-        req.body.fullName,
-        req.body.phone,
-        req.body.address
-      ]
-    );
+    try {
+      db.run(
+        `INSERT INTO orders
+         (productId, fullName, phone, address)
+         VALUES (?, ?, ?, ?)`,
+        [
+          req.body.productId || null,
+          req.body.fullName,
+          req.body.phone,
+          req.body.address
+        ]
+      );
 
-    saveDatabase();
+      // Get the new order ID immediately after inserting.
+      const rows = getRows(
+        "SELECT last_insert_rowid() AS id"
+      );
 
-    const rows = getRows(
-      "SELECT last_insert_rowid() AS id"
-    );
+      const orderId = Number(rows[0]?.id);
 
-    res.redirect("/order-success/" + rows[0].id);
+      if (!orderId) {
+        return res.status(500).send(
+          "Order was submitted, but its order number could not be generated. Please contact support."
+        );
+      }
+
+      // Save the database before redirecting.
+      saveDatabase();
+
+      // Open the success page using the new order ID.
+      return res.redirect("/order-success/" + orderId);
+
+    } catch (error) {
+      console.error("Order submission failed:", error);
+      return res.status(500).send(
+        "We could not process your order. Please try again later."
+      );
+    }
   });
+
 
   // ORDER SUCCESS
   app.get("/order-success/:id", (req, res) => {
