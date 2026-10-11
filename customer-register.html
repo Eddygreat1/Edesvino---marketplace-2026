@@ -1,0 +1,309 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Customer Registration | Edesvino Marketplace">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      background: white;
+      padding: 28px;
+      border-radius: 14px;
+      box-shadow: 0 4px 18px #00000012;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      color: #111827;
+      font-size: 26px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 16px 0 7px;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    input:focus {
+      outline: 2px solid #047857;
+      border-color: #047857;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 22px;
+      border: none;
+      border-radius: 7px;
+      background: #111827;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    #message {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 7px;
+      background: #f3f4f6;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      display: none;
+    }
+
+    .links {
+      text-align: center;
+      margin-top: 20px;
+      line-height: 2;
+    }
+
+    a {
+      color: #047857;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>Create Your Account</h1>
+
+    <p class="subtitle">
+      Join Edesvino Marketplace to shop and manage your orders.
+    </p>
+
+    <form id="registerForm">
+      <label for="fullName">Full Name</label>
+      <input
+        id="fullName"
+        name="fullName"
+        type="text"
+        autocomplete="name"
+        placeholder="Enter your full name"
+        required
+        maxlength="100"
+      >
+
+      <label for="email">Email Address</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        placeholder="Enter your email address"
+        required
+      >
+
+      <label for="password">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="new-password"
+        placeholder="Create a password"
+        minlength="8"
+        required
+      >
+
+      <label for="confirmPassword">Confirm Password</label>
+      <input
+        id="confirmPassword"
+        name="confirmPassword"
+        type="password"
+        autocomplete="new-password"
+        placeholder="Enter your password again"
+        minlength="8"
+        required
+      >
+
+      <button id="registerButton" type="submit">
+        Create Account
+      </button>
+    </form>
+
+    <div id="message" role="status" aria-live="polite"></div>
+
+    <div class="links">
+      Already have an account?
+      <a href="customer-login.html">Log in here</a>
+    </div>
+
+    <a class="back" href="./">Back to Marketplace</a>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL =
+      "https://lxszilqypuglxyfyukdg.supabase.co";
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+    const form = document.getElementById("registerForm");
+    const button = document.getElementById("registerButton");
+    const message = document.getElementById("message");
+
+    function showMessage(text, isError = false) {
+      message.textContent = text;
+      message.style.display = "block";
+      message.style.color = isError ? "#b91c1c" : "#065f46";
+      message.style.background = isError ? "#fee2e2" : "#d1fae5";
+    }
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      const fullName =
+        document.getElementById("fullName").value.trim();
+
+      const email =
+        document.getElementById("email").value.trim();
+
+      const password =
+        document.getElementById("password").value;
+
+      const confirmPassword =
+        document.getElementById("confirmPassword").value;
+
+      if (!fullName) {
+        showMessage("Please enter your full name.", true);
+        return;
+      }
+
+      if (password.length < 8) {
+        showMessage(
+          "Your password must contain at least 8 characters.",
+          true
+        );
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showMessage("Your passwords do not match.", true);
+        return;
+      }
+
+      if (!window.supabase) {
+        showMessage(
+          "The registration service could not load. Check your internet connection and try again.",
+          true
+        );
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Creating account...";
+      message.style.display = "none";
+
+      try {
+        const client = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY
+        );
+
+        const loginUrl = new URL(
+          "customer-login.html",
+          window.location.href
+        ).href;
+
+        const { data, error } = await client.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: fullName
+            },
+            emailRedirectTo: loginUrl
+          }
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data.session) {
+          showMessage(
+            "Your account has been created successfully! " +
+            "Customer login is our next setup step."
+          );
+        } else {
+          showMessage(
+            "Registration received! If email confirmation is enabled, " +
+            "check your inbox and follow the confirmation link. " +
+            "Then return here to log in."
+          );
+        }
+
+        form.reset();
+
+      } catch (error) {
+        console.error("Registration error:", error);
+
+        showMessage(
+          error.message ||
+          "We could not create your account. Please try again.",
+          true
+        );
+
+      } finally {
+        button.disabled = false;
+        button.textContent = "Create Account";
+      }
+    });
+  </script>
+</body>
+</html>
