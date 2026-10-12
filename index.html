@@ -33,6 +33,12 @@
       border-radius: 12px;
       margin-bottom: 20px;
     }
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
     .products {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -62,16 +68,26 @@
       color: #6b7280;
       font-size: 14px;
     }
-    button {
-      width: 100%;
+    button, .link-button {
+      display: inline-block;
       padding: 12px;
       border: 0;
       border-radius: 7px;
       background: #111827;
       color: white;
-      font-size: 16px;
+      font-size: 15px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
     }
-    button:disabled { background: #9ca3af; }
+    .product button { width: 100%; margin-top: 8px; }
+    .secondary { background: #047857; }
+    .notice {
+      margin-top: 12px;
+      color: #047857;
+      font-size: 14px;
+      min-height: 18px;
+    }
     footer {
       text-align: center;
       padding: 25px;
@@ -89,6 +105,15 @@
     <section class="intro">
       <h2>Welcome to Edesvino</h2>
       <p>Explore products from our marketplace.</p>
+      <div class="top-actions">
+        <a class="link-button" href="./cart.html">
+          View Shopping Cart (<span id="cartCount">0</span>)
+        </a>
+        <a class="link-button secondary" href="./customer-login.html">
+          Customer Login
+        </a>
+      </div>
+      <p id="cartNotice" class="notice" aria-live="polite"></p>
     </section>
 
     <section class="status" id="status" aria-live="polite">
@@ -108,8 +133,11 @@
     const SUPABASE_PUBLISHABLE_KEY =
       "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
+    const CART_KEY = "edesvinoMarketplaceCart";
     const statusBox = document.getElementById("status");
     const productsBox = document.getElementById("products");
+    const cartCountBox = document.getElementById("cartCount");
+    const cartNotice = document.getElementById("cartNotice");
 
     function safeText(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -137,6 +165,73 @@
       return Number.isFinite(amount)
         ? "₦" + amount.toLocaleString("en-NG")
         : "Price unavailable";
+    }
+
+    function readCart() {
+      try {
+        const cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+        if (!Array.isArray(cart)) return [];
+        return cart.filter(item =>
+          item &&
+          item.id !== undefined &&
+          typeof item.name === "string" &&
+          Number.isFinite(Number(item.price)) &&
+          Number(item.price) >= 0 &&
+          Number.isInteger(Number(item.quantity)) &&
+          Number(item.quantity) > 0
+        ).map(item => ({
+          id: String(item.id),
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity)
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    function updateCartCount() {
+      const cart = readCart();
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      cartCountBox.textContent = String(count);
+    }
+
+    function addToCart(product) {
+      const id = String(product.id ?? "");
+      const name = String(product.name ?? "").trim();
+      const price = Number(product.price);
+
+      if (!id || !name || !Number.isFinite(price) || price < 0) {
+        cartNotice.style.color = "#b91c1c";
+        cartNotice.textContent =
+          "This product has incomplete information and could not be added.";
+        return;
+      }
+
+      const cart = readCart();
+      const existing = cart.find(item => item.id === id);
+
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({
+          id: id,
+          name: name,
+          price: price,
+          quantity: 1
+        });
+      }
+
+      try {
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+        updateCartCount();
+        cartNotice.style.color = "#047857";
+        cartNotice.textContent = name + " added to your cart.";
+      } catch (error) {
+        cartNotice.style.color = "#b91c1c";
+        cartNotice.textContent =
+          "Could not save your cart on this device. Check your browser settings.";
+      }
     }
 
     async function loadProducts() {
@@ -173,8 +268,7 @@
           card.className = "product";
 
           const imageUrl = validImageUrl(product.image_url);
-          const storeName =
-            product.store_name || product.store || "";
+          const storeName = product.store_name || product.store || "";
 
           card.innerHTML = `
             ${imageUrl
@@ -189,11 +283,15 @@
               ${storeName
                 ? `<p class="muted">Store: ${safeText(storeName)}</p>`
                 : ""}
-              <button type="button" disabled>
-                Ordering setup coming next
+              <button type="button" class="add-button">
+                Add to Cart
               </button>
             </div>
           `;
+
+          card.querySelector(".add-button").addEventListener("click", () => {
+            addToCart(product);
+          });
 
           productsBox.appendChild(card);
         });
@@ -204,10 +302,11 @@
       } catch (error) {
         console.error("Marketplace loading error:", error);
         statusBox.textContent =
-          "Products could not be loaded. Check your Supabase connection, table columns, and Row Level Security (RLS) read policy. Your existing data has not been changed.";
+          "Products could not be loaded. Check your Supabase connection, table columns, and read permissions. Existing data has not been changed.";
       }
     }
 
+    updateCartCount();
     loadProducts();
   </script>
 </body>
