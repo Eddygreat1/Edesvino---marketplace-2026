@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Login | Edesvino Marketplace</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f3f6fb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 430px;
+      margin: 45px auto;
+      padding: 25px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+    }
+    h1 { text-align: center; color: #111827; }
+    p { line-height: 1.5; text-align: center; }
+    label { display: block; margin-top: 16px; font-weight: bold; }
+    input {
+      width: 100%;
+      padding: 13px;
+      margin-top: 7px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 22px;
+      border: 0;
+      border-radius: 7px;
+      background: #166534;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; }
+    #message {
+      margin-top: 16px;
+      overflow-wrap: anywhere;
+      text-align: left;
+    }
+    a { color: #166534; }
+    .links { margin-top: 20px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Customer Login</h1>
+    <p>Welcome back to Edesvino Marketplace.</p>
+
+    <form id="loginForm">
+      <label for="email">Email Address</label>
+      <input
+        type="email"
+        id="email"
+        autocomplete="email"
+        placeholder="Enter your email"
+        required
+      >
+
+      <label for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        autocomplete="current-password"
+        placeholder="Enter your password"
+        required
+      >
+
+      <button type="submit" id="loginButton">Log In</button>
+      <p id="message" role="status" aria-live="polite"></p>
+    </form>
+
+    <div class="links">
+      <p>Don't have an account?
+        <a href="./customer-register.html">Register here</a>
+      </p>
+      <p><a href="./">Back to Marketplace</a></p>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+    const client = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    const form = document.getElementById("loginForm");
+    const button = document.getElementById("loginButton");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = "Logging in...";
+      message.textContent = "Please wait...";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const { data, error } = await client.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) throw error;
+
+        message.textContent =
+          "Login successful! Welcome back. Your account is signed in.";
+
+        message.style.color = "#166534";
+      } catch (error) {
+        message.textContent =
+          "Login failed: " + (error.message || "Please check your details and try again.");
+        message.style.color = "#b91c1c";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Log In";
+      }
+    });
+  </script>
+</body>
+</html>
