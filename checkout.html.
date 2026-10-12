@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout - Edesvino Marketplace</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: white;
+      padding: 22px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #00000010;
+    }
+    h1 { font-size: 25px; margin-top: 0; }
+    h2 { font-size: 19px; margin-top: 25px; }
+    .item {
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .muted { color: #6b7280; font-size: 14px; }
+    .total {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 18px 0;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 15px 0 6px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+    textarea { min-height: 85px; resize: vertical; }
+    button, .link {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      margin-top: 15px;
+      border: 0;
+      border-radius: 7px;
+      background: #047857;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .link {
+      background: #374151;
+      font-weight: normal;
+    }
+    .notice {
+      margin-top: 15px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Edesvino Checkout</h1>
+    <p class="muted">Review your items and enter your delivery details.</p>
+
+    <h2>Your Order</h2>
+    <div id="orderItems">Loading your cart...</div>
+    <div class="total" id="orderTotal"></div>
+
+    <form id="checkoutForm">
+      <h2>Delivery Details</h2>
+
+      <label for="fullName">Full Name</label>
+      <input id="fullName" name="fullName"
+        type="text" autocomplete="name" required>
+
+      <label for="phone">Phone Number</label>
+      <input id="phone" name="phone" type="tel"
+        autocomplete="tel" required>
+
+      <label for="address">Delivery Address</label>
+      <textarea id="address" name="address"
+        autocomplete="street-address" required></textarea>
+
+      <label for="city">City or Town</label>
+      <input id="city" name="city"
+        type="text" autocomplete="address-level2" required>
+
+      <label for="notes">Additional Delivery Instructions (Optional)</label>
+      <textarea id="notes" name="notes"></textarea>
+
+      <button id="continueButton" type="submit">
+        Save Delivery Details
+      </button>
+    </form>
+
+    <p id="notice" class="notice" aria-live="polite"></p>
+
+    <a class="link" href="./cart.html">Back to Shopping Cart</a>
+    <a class="link" href="./">Continue Shopping</a>
+
+    <p class="muted">
+      This is the delivery-details stage. No order has been submitted
+      and no payment has been taken.
+    </p>
+  </main>
+
+  <script>
+    const CART_KEY = "edesvinoMarketplaceCart";
+    const DETAILS_KEY = "edesvinoMarketplaceCheckout";
+    const itemsBox = document.getElementById("orderItems");
+    const totalBox = document.getElementById("orderTotal");
+    const notice = document.getElementById("notice");
+    const form = document.getElementById("checkoutForm");
+    const continueButton = document.getElementById("continueButton");
+
+    let cart = [];
+
+    function money(value) {
+      return Number(value).toLocaleString("en-NG", {
+        style: "currency",
+        currency: "NGN",
+        maximumFractionDigits: 2
+      });
+    }
+
+    function showMessage(message, color) {
+      notice.textContent = message;
+      notice.style.color = color;
+    }
+
+    function loadCart() {
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem(CART_KEY) || "[]"
+        );
+
+        if (!Array.isArray(saved)) throw new Error("Invalid cart");
+
+        cart = saved.filter(item =>
+          item &&
+          item.id !== undefined &&
+          typeof item.name === "string" &&
+          Number.isFinite(Number(item.price)) &&
+          Number(item.price) >= 0 &&
+          Number.isInteger(Number(item.quantity)) &&
+          Number(item.quantity) > 0
+        ).map(item => ({
+          id: String(item.id),
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity)
+        }));
+
+        itemsBox.replaceChildren();
+
+        if (cart.length === 0) {
+          itemsBox.textContent = "Your cart is empty.";
+          totalBox.textContent = "";
+          form.hidden = true;
+          return;
+        }
+
+        let total = 0;
+
+        cart.forEach(item => {
+          const lineTotal = item.price * item.quantity;
+          total += lineTotal;
+
+          const row = document.createElement("div");
+          row.className = "item";
+
+          const name = document.createElement("strong");
+          name.textContent = item.name;
+
+          const details = document.createElement("div");
+          details.className = "muted";
+          details.textContent =
+            "Quantity: " + item.quantity +
+            " × " + money(item.price);
+
+          const subtotal = document.createElement("div");
+          subtotal.textContent = "Subtotal: " + money(lineTotal);
+
+          row.append(name, details, subtotal);
+          itemsBox.appendChild(row);
+        });
+
+        totalBox.textContent = "Total: " + money(total);
+      } catch (error) {
+        cart = [];
+        itemsBox.textContent =
+          "Your cart could not be read. Please return to your cart.";
+        totalBox.textContent = "";
+        form.hidden = true;
+      }
+    }
+
+    try {
+      const savedDetails = JSON.parse(
+        sessionStorage.getItem(DETAILS_KEY) || "null"
+      );
+
+      if (savedDetails) {
+        document.getElementById("fullName").value =
+          savedDetails.fullName || "";
+        document.getElementById("phone").value =
+          savedDetails.phone || "";
+        document.getElementById("address").value =
+          savedDetails.address || "";
+        document.getElementById("city").value =
+          savedDetails.city || "";
+        document.getElementById("notes").value =
+          savedDetails.notes || "";
+      }
+    } catch (error) {
+      sessionStorage.removeItem(DETAILS_KEY);
+    }
+
+    form.addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      if (cart.length === 0) {
+        showMessage(
+          "Your cart is empty. Add products before checkout.",
+          "#b91c1c"
+        );
+        return;
+      }
+
+      if (!form.reportValidity()) return;
+
+      const details = {
+        fullName: document.getElementById("fullName").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        address: document.getElementById("address").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        notes: document.getElementById("notes").value.trim()
+      };
+
+      if (
+        !details.fullName ||
+        !details.phone ||
+        !details.address ||
+        !details.city
+      ) {
+        showMessage("Please complete all required fields.", "#b91c1c");
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(
+          DETAILS_KEY,
+          JSON.stringify(details)
+        );
+
+        showMessage(
+          "Delivery details saved for this browser session. No order or payment has been created yet.",
+          "#047857"
+        );
+      } catch (error) {
+        showMessage(
+          "Could not save your details in this browser. Please try again.",
+          "#b91c1c"
+        );
+      }
+    });
+
+    loadCart();
+  </script>
+</body>
+</html>
