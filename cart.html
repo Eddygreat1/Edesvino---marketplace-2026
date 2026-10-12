@@ -1,0 +1,234 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Shopping Cart | Edesvino Marketplace</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+    header {
+      padding: 22px 16px;
+      background: #111827;
+      color: white;
+      text-align: center;
+    }
+    header h1 { margin: 0 0 8px; }
+    .container { max-width: 850px; margin: auto; padding: 20px 16px; }
+    .panel {
+      background: white;
+      padding: 18px;
+      margin-bottom: 18px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px #00000010;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .item:last-child { border-bottom: 0; }
+    .details { flex: 1; min-width: 0; }
+    .details h3 { margin: 0 0 7px; overflow-wrap: anywhere; }
+    .price { color: #047857; font-weight: bold; }
+    .quantity {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 10px;
+    }
+    .quantity button { width: 38px; padding: 8px; }
+    button, .link-button {
+      display: inline-block;
+      border: 0;
+      border-radius: 7px;
+      padding: 12px 14px;
+      background: #111827;
+      color: white;
+      font-size: 15px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .remove { background: #b91c1c; }
+    .actions { display: grid; gap: 10px; margin-top: 18px; }
+    .secondary { background: #e5e7eb; color: #111827; }
+    .empty { padding: 25px 0; text-align: center; color: #6b7280; }
+    .total { font-size: 22px; font-weight: bold; }
+    .notice { color: #6b7280; font-size: 14px; line-height: 1.5; }
+    @media (max-width: 480px) {
+      .item { align-items: flex-start; }
+      .item > .remove { padding: 9px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Your Shopping Cart</h1>
+    <p>Edesvino Marketplace</p>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <div id="cartItems" aria-live="polite"></div>
+      <p id="emptyMessage" class="empty" hidden>
+        Your cart is empty. Visit the marketplace to add products.
+      </p>
+    </section>
+
+    <section class="panel">
+      <p>Subtotal</p>
+      <p class="total" id="cartTotal">₦0</p>
+      <p class="notice">
+        Your cart is saved on this device. Checkout and payment will be
+        connected in a later step. No payment is taken on this page.
+      </p>
+      <div class="actions">
+        <button type="button" id="checkoutButton" disabled>
+          Proceed to Checkout
+        </button>
+        <a class="link-button secondary" href="./">
+          Continue Shopping
+        </a>
+      </div>
+      <p id="message" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script>
+    const CART_KEY = "edesvinoMarketplaceCart";
+    const itemsBox = document.getElementById("cartItems");
+    const emptyMessage = document.getElementById("emptyMessage");
+    const totalBox = document.getElementById("cartTotal");
+    const checkoutButton = document.getElementById("checkoutButton");
+    const messageBox = document.getElementById("message");
+
+    function money(value) {
+      return "₦" + Number(value).toLocaleString("en-NG");
+    }
+
+    function readCart() {
+      try {
+        const value = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+        if (!Array.isArray(value)) return [];
+        return value.filter(item =>
+          item &&
+          item.id !== undefined &&
+          typeof item.name === "string" &&
+          Number.isFinite(Number(item.price)) &&
+          Number(item.price) >= 0 &&
+          Number.isInteger(Number(item.quantity)) &&
+          Number(item.quantity) > 0
+        ).map(item => ({
+          id: String(item.id),
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity)
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    function saveCart(cart) {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    }
+
+    function renderCart() {
+      const cart = readCart();
+      itemsBox.replaceChildren();
+      emptyMessage.hidden = cart.length !== 0;
+      checkoutButton.disabled = cart.length === 0;
+
+      let total = 0;
+
+      cart.forEach(item => {
+        total += item.price * item.quantity;
+
+        const row = document.createElement("article");
+        row.className = "item";
+
+        const details = document.createElement("div");
+        details.className = "details";
+
+        const title = document.createElement("h3");
+        title.textContent = item.name;
+
+        const price = document.createElement("p");
+        price.className = "price";
+        price.textContent = money(item.price) + " each";
+
+        const quantity = document.createElement("div");
+        quantity.className = "quantity";
+
+        const decrease = document.createElement("button");
+        decrease.type = "button";
+        decrease.textContent = "−";
+        decrease.setAttribute("aria-label", "Decrease quantity");
+        decrease.addEventListener("click", () => changeQuantity(item.id, -1));
+
+        const count = document.createElement("span");
+        count.textContent = String(item.quantity);
+
+        const increase = document.createElement("button");
+        increase.type = "button";
+        increase.textContent = "+";
+        increase.setAttribute("aria-label", "Increase quantity");
+        increase.addEventListener("click", () => changeQuantity(item.id, 1));
+
+        quantity.append(decrease, count, increase);
+        details.append(title, price, quantity);
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "remove";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => removeItem(item.id));
+
+        row.append(details, remove);
+        itemsBox.appendChild(row);
+      });
+
+      totalBox.textContent = money(total);
+    }
+
+    function changeQuantity(id, change) {
+      const cart = readCart();
+      const item = cart.find(entry => entry.id === id);
+      if (!item) return;
+
+      item.quantity += change;
+
+      const updated = item.quantity <= 0
+        ? cart.filter(entry => entry.id !== id)
+        : cart;
+
+      saveCart(updated);
+      renderCart();
+    }
+
+    function removeItem(id) {
+      saveCart(readCart().filter(item => item.id !== id));
+      renderCart();
+    }
+
+    checkoutButton.addEventListener("click", () => {
+      messageBox.textContent =
+        "Your cart is ready. Checkout has not been connected yet.";
+    });
+
+    renderCart();
+  </script>
+</body>
+</html>
