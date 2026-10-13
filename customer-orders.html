@@ -216,9 +216,20 @@
 
         const { data: items, error: itemsError } = await client
           .from("order_items")
+      
+      
           .select("order_id, product_name, price, quantity")
-          .in("order_id", orderIds);
 
+
+
+          
+
+        
+           
+     .in("order_id", orderIds)
+     
+     console.log("Order IDs:", orderIds);
+  console.log("Order items result:", items, itemsError);
         const itemsByOrder = {};
 
         if (itemsError) {
