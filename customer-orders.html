@@ -45,6 +45,14 @@
       margin-top: 0;
     }
 
+    .item {
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+      line-height: 1.5;
+    }
+
+    .item:last-child { border-bottom: 0; }
+
     .status {
       display: inline-block;
       padding: 5px 9px;
@@ -68,7 +76,6 @@
     }
 
     a { color: #166534; }
-
     .top-link { margin-bottom: 20px; }
   </style>
 </head>
@@ -117,11 +124,19 @@
       retryButton.hidden = false;
     }
 
+    function formatMoney(value) {
+      const amount = Number(value);
+      if (!Number.isFinite(amount)) return "Amount unavailable";
+
+      return amount.toLocaleString("en-NG", {
+        style: "currency",
+        currency: "NGN"
+      });
+    }
+
     try {
       if (!window.supabase) {
-        throw new Error(
-          "Supabase did not load. Check your internet connection and reload."
-        );
+        throw new Error("Supabase did not load. Check your internet connection.");
       }
 
       client = window.supabase.createClient(
@@ -147,74 +162,75 @@
       showMessage("Checking your saved login session...");
 
       if (!client) {
-        showMessage(
-          "Supabase could not start. Reload the page and try again.",
-          "#b91c1c"
-        );
+        showMessage("Supabase could not start. Please reload the page.", "#b91c1c");
         showRetry();
         return;
       }
 
       try {
-        // Read the session saved in this browser first.
         const { data: sessionData, error: sessionError } =
           await client.auth.getSession();
 
         if (sessionError) {
-          throw new Error(
-            "Could not read the saved session: " +
-            sessionError.message
-          );
+          throw new Error("Could not read saved session: " + sessionError.message);
         }
 
         let session = sessionData.session;
 
-        // If necessary, try to restore the session from Supabase.
         if (!session) {
           const { data: refreshed, error: refreshError } =
             await client.auth.refreshSession();
 
           if (refreshError) {
-            throw new Error(
-              "Your saved session could not be restored. Please log in again. Details: " +
-              refreshError.message
-            );
+            throw new Error("Please log in again. " + refreshError.message);
           }
 
           session = refreshed.session;
         }
 
         if (!session || !session.user) {
-          showMessage(
-            "No saved login was found in this browser. Please log in again.",
-            "#b91c1c"
-          );
+          showMessage("Please log in before viewing your orders.", "#b91c1c");
           showRetry();
           return;
         }
 
-        const user = session.user;
         showMessage("Loading your orders...");
 
-        const { data: orders, error: ordersError } =
-          await client
-            .from("orders")
-            .select("id, product_name, total_amount, status")
-            .eq("customer_id", user.id)
-            .order("id", { ascending: false });
+        const { data: orders, error: ordersError } = await client
+          .from("orders")
+          .select("id, product_name, total_amount, status")
+          .eq("customer_id", session.user.id)
+          .order("id", { ascending: false });
 
         if (ordersError) {
-          throw new Error(
-            "Your login is active, but orders could not be loaded: " +
-            ordersError.message
-          );
+          throw new Error("Could not load orders: " + ordersError.message);
         }
 
         if (!orders || orders.length === 0) {
-          showMessage(
-            "You're signed in, but no orders are linked to this account yet."
-          );
+          showMessage("No orders are linked to this customer account yet.");
           return;
+        }
+
+        // Fetch items only for orders belonging to the signed-in customer.
+        const orderIds = orders.map(order => order.id);
+
+        const { data: items, error: itemsError } = await client
+          .from("order_items")
+          .select("order_id, product_name, price, quantity")
+          .in("order_id", orderIds);
+
+        const itemsByOrder = {};
+
+        if (!itemsError && items) {
+          for (const item of items) {
+            const id = String(item.order_id);
+
+            if (!itemsByOrder[id]) {
+              itemsByOrder[id] = [];
+            }
+
+            itemsByOrder[id].push(item);
+          }
         }
 
         for (const order of orders) {
@@ -225,35 +241,64 @@
           heading.textContent = "Order #" + order.id;
           card.appendChild(heading);
 
-          const product = document.createElement("p");
-          product.textContent =
-            "Product: " + (order.product_name || "Order items");
-          card.appendChild(product);
+          const orderItems = itemsByOrder[String(order.id)] || [];
+
+          if (orderItems.length > 0) {
+            const itemsHeading = document.createElement("h3");
+            itemsHeading.textContent = "Items";
+            card.appendChild(itemsHeading);
+
+            for (const item of orderItems) {
+              const itemRow = document.createElement("div");
+              itemRow.className = "item";
+
+              const name = item.product_name || "Product";
+              const quantity = Number(item.quantity) || 1;
+              const price = Number(item.price);
+
+              const itemName = document.createElement("strong");
+              itemName.textContent = name;
+              itemRow.appendChild(itemName);
+
+              const details = document.createElement("div");
+              details.textContent =
+                "Quantity: " + quantity +
+                " × " + formatMoney(price);
+              itemRow.appendChild(details);
+
+              const subtotal = document.createElement("div");
+              subtotal.textContent =
+                "Subtotal: " + formatMoney(price * quantity);
+              itemRow.appendChild(subtotal);
+
+              card.appendChild(itemRow);
+            }
+          } else {
+            const noItems = document.createElement("p");
+            noItems.textContent = itemsError
+              ? "Order items could not be loaded. Please check your order details later."
+              : "No individual items were found for this order.";
+            card.appendChild(noItems);
+          }
 
           const total = document.createElement("p");
-          const amount = Number(order.total_amount);
-
-          total.textContent =
-            "Total: " +
-            (Number.isFinite(amount)
-              ? amount.toLocaleString("en-NG", {
-                  style: "currency",
-                  currency: "NGN"
-                })
-              : "Amount unavailable");
-
+          total.textContent = "Order total: " + formatMoney(order.total_amount);
           card.appendChild(total);
 
           const status = document.createElement("p");
           status.className = "status";
-          status.textContent =
-            "Status: " + (order.status || "Pending");
+          status.textContent = "Status: " + (order.status || "Pending");
           card.appendChild(status);
 
           ordersContainer.appendChild(card);
         }
 
-        showMessage("Your orders have loaded successfully.", "#166534");
+        showMessage(
+          itemsError
+            ? "Your orders loaded, but Supabase could not return the individual items."
+            : "Your orders and item details have loaded successfully.",
+          itemsError ? "#92400e" : "#166534"
+        );
 
       } catch (error) {
         showMessage(
