@@ -5,237 +5,267 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Orders | Edesvino Marketplace</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
+      margin: 0;
+      padding: 20px;
       font-family: Arial, sans-serif;
       background: #f3f4f6;
-      color: #222;
-      margin: 0;
-      padding: 18px;
+      color: #1f2937;
     }
 
-    .container {
-      max-width: 700px;
-      margin: auto;
-    }
-
-    header {
-      background: #166534;
-      color: white;
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-
-    header h1 {
-      margin: 0 0 8px;
-    }
-
-    .links {
-      margin: 18px 0;
-    }
-
-    a {
-      color: #166534;
-      font-weight: bold;
-    }
-
-    .panel, .order-card {
+    main {
+      max-width: 760px;
+      margin: 25px auto;
+      padding: 24px;
       background: white;
-      padding: 18px;
-      border-radius: 10px;
-      margin-bottom: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.07);
+    }
+
+    h1 { margin-top: 0; }
+
+    .intro {
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    .order {
+      border: 1px solid #e5e7eb;
+      border-radius: 9px;
+      padding: 16px;
+      margin: 15px 0;
       overflow-wrap: anywhere;
     }
 
-    .order-card {
-      border: 1px solid #ddd;
-    }
-
-    .order-card h2 {
+    .order h2 {
+      font-size: 18px;
       margin-top: 0;
-      color: #166534;
-    }
-
-    .total {
-      font-size: 20px;
-      font-weight: bold;
     }
 
     .status {
       display: inline-block;
-      background: #fef3c7;
-      padding: 7px 12px;
-      border-radius: 6px;
+      padding: 5px 9px;
+      background: #f3f4f6;
+      border-radius: 5px;
+    }
+
+    .message {
+      line-height: 1.6;
+      overflow-wrap: anywhere;
     }
 
     button {
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 6px;
       background: #166534;
       color: white;
-      border: 0;
-      border-radius: 7px;
-      padding: 12px 16px;
-      font-size: 16px;
+      font-size: 15px;
       cursor: pointer;
     }
 
-    button:disabled {
-      opacity: 0.6;
-    }
+    a { color: #166534; }
 
-    .hidden {
-      display: none;
-    }
+    .top-link { margin-bottom: 20px; }
   </style>
 </head>
-
 <body>
-  <main class="container">
-    <header>
-      <h1>My Orders</h1>
-      <p>Welcome to your Edesvino order history.</p>
-    </header>
-
-    <nav class="links">
+  <main>
+    <div class="top-link">
       <a href="./index.html">Back to Marketplace</a>
-    </nav>
+    </div>
 
-    <section id="message" class="panel" aria-live="polite">
-      Checking your account...
-    </section>
+    <h1>My Orders</h1>
+    <p class="intro">
+      Welcome to your Edesvino order history.
+    </p>
 
-    <section id="orders"></section>
+    <p id="message" class="message" aria-live="polite">
+      Checking your login...
+    </p>
 
-    <button id="retryButton" class="hidden" type="button">
+    <div id="orders"></div>
+
+    <button id="retryButton" type="button" hidden>
       Try Again
     </button>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL =
       "https://lxszilqypuglxyfyukdg.supabase.co";
 
     const SUPABASE_KEY =
-      "sb_publishable_s0nFQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
-
-    const db = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY
-    );
+      "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
     const message = document.getElementById("message");
-    const ordersBox = document.getElementById("orders");
+    const ordersContainer = document.getElementById("orders");
     const retryButton = document.getElementById("retryButton");
 
-    function showMessage(text) {
+    let client = null;
+
+    function showMessage(text, color = "#1f2937") {
       message.textContent = text;
+      message.style.color = color;
     }
 
-    function showError(text) {
-      showMessage(text);
-      retryButton.classList.remove("hidden");
+    function showRetry() {
+      retryButton.hidden = false;
     }
 
-    function formatMoney(value) {
-      return "₦" + Number(value || 0).toLocaleString("en-NG", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
+    try {
+      if (!window.supabase) {
+        throw new Error(
+          "Supabase did not load. Check your internet connection and reload."
+        );
+      }
+
+      client = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage
+          }
+        }
+      );
+    } catch (error) {
+      showMessage("Setup error: " + error.message, "#b91c1c");
+      showRetry();
     }
 
     async function loadOrders() {
-      ordersBox.replaceChildren();
-      retryButton.classList.add("hidden");
-      showMessage("Loading your orders...");
+      retryButton.hidden = true;
+      ordersContainer.replaceChildren();
+      showMessage("Checking your saved login session...");
+
+      if (!client) {
+        showMessage(
+          "Supabase could not start. Reload the page and try again.",
+          "#b91c1c"
+        );
+        showRetry();
+        return;
+      }
 
       try {
-        const { data: authData, error: authError } =
-          await db.auth.getUser();
+        // Read the session saved in this browser first.
+        const { data: sessionData, error: sessionError } =
+          await client.auth.getSession();
 
-        if (authError) {
-          showError("Unable to verify your login. Please try again.");
+        if (sessionError) {
+          throw new Error(
+            "Could not read the saved session: " +
+            sessionError.message
+          );
+        }
+
+        let session = sessionData.session;
+
+        // If necessary, try to restore the session from Supabase.
+        if (!session) {
+          const { data: refreshed, error: refreshError } =
+            await client.auth.refreshSession();
+
+          if (refreshError) {
+            throw new Error(
+              "Your saved session could not be restored. Please log in again. Details: " +
+              refreshError.message
+            );
+          }
+
+          session = refreshed.session;
+        }
+
+        if (!session || !session.user) {
+          showMessage(
+            "No saved login was found in this browser. Please log in again.",
+            "#b91c1c"
+          );
+          showRetry();
           return;
         }
 
-        if (!authData.user) {
-          showMessage("Please log in before viewing your orders.");
+        const user = session.user;
+        showMessage("Loading your orders...");
 
-          const loginLink = document.createElement("a");
-          loginLink.href = "./customer-login.html";
-          loginLink.textContent = "Go to Customer Login";
+        const { data: orders, error: ordersError } =
+          await client
+            .from("orders")
+            .select("id, product_name, total_amount, status")
+            .eq("customer_id", user.id)
+            .order("id", { ascending: false });
 
-          message.appendChild(document.createElement("br"));
-          message.appendChild(document.createElement("br"));
-          message.appendChild(loginLink);
-          return;
+        if (ordersError) {
+          throw new Error(
+            "Your login is active, but orders could not be loaded: " +
+            ordersError.message
+          );
         }
 
-        const { data: orders, error } = await db
-          .from("orders")
-          .select("id, product_name, total_amount, status")
-          .eq("customer_id", authData.user.id)
-          .order("id", { ascending: false });
-
-        if (error) {
-          showError(
-            "We couldn't load your orders. Supabase may need a secure policy allowing customers to read only their own orders. Details: " +
-            error.message
+        if (!orders || orders.length === 0) {
+          showMessage(
+            "You're signed in, but no orders are linked to this account yet."
           );
           return;
         }
 
-        if (!orders || orders.length === 0) {
-          showMessage("You have no orders yet.");
-          return;
-        }
+        for (const order of orders) {
+          const card = document.createElement("section");
+          card.className = "order";
 
-        showMessage("Your orders: " + orders.length);
-
-        orders.forEach(function(order) {
-          const card = document.createElement("article");
-          card.className = "order-card";
-
-          const title = document.createElement("h2");
-          title.textContent = "Order #" + order.id;
+          const heading = document.createElement("h2");
+          heading.textContent = "Order #" + order.id;
+          card.appendChild(heading);
 
           const product = document.createElement("p");
           product.textContent =
             "Product: " + (order.product_name || "Order items");
+          card.appendChild(product);
 
           const total = document.createElement("p");
-          total.className = "total";
+          const amount = Number(order.total_amount);
+
           total.textContent =
-            "Total: " + formatMoney(order.total_amount);
+            "Total: " +
+            (Number.isFinite(amount)
+              ? amount.toLocaleString("en-NG", {
+                  style: "currency",
+                  currency: "NGN"
+                })
+              : "Amount unavailable");
+
+          card.appendChild(total);
 
           const status = document.createElement("p");
           status.className = "status";
           status.textContent =
             "Status: " + (order.status || "Pending");
-
-          card.appendChild(title);
-          card.appendChild(product);
-          card.appendChild(total);
           card.appendChild(status);
 
-          ordersBox.appendChild(card);
-        });
+          ordersContainer.appendChild(card);
+        }
+
+        showMessage("Your orders have loaded successfully.", "#166534");
 
       } catch (error) {
-        showError(
-          "A connection problem occurred. Please check your internet connection and try again."
+        showMessage(
+          "Unable to load your orders: " +
+          (error.message || "Please try again."),
+          "#b91c1c"
         );
+        showRetry();
       }
     }
 
     retryButton.addEventListener("click", loadOrders);
-
     loadOrders();
   </script>
 </body>
