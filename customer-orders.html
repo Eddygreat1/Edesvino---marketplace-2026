@@ -221,7 +221,11 @@
 
         const itemsByOrder = {};
 
-        if (!itemsError && items) {
+        if (itemsError) {
+  throw new Error("Could not load order items: " + itemsError.message);
+}
+
+if (items) {
           for (const item of items) {
             const id = String(item.order_id);
 
