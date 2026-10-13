@@ -5,51 +5,61 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Customer Login | Edesvino Marketplace</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
       padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: Arial, sans-serif;
-      background: #f3f6fb;
+      background: #f3f4f6;
       color: #1f2937;
     }
 
     .container {
-      max-width: 430px;
-      margin: 45px auto;
-      padding: 25px;
+      width: 100%;
+      max-width: 420px;
+      padding: 28px;
       background: white;
       border-radius: 12px;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
     }
 
-    h1 { text-align: center; color: #111827; }
-    p { line-height: 1.5; text-align: center; }
+    h1 {
+      margin-top: 0;
+      font-size: 27px;
+    }
+
+    .intro {
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
 
     label {
       display: block;
-      margin-top: 16px;
+      margin: 16px 0 7px;
       font-weight: bold;
     }
 
     input {
       width: 100%;
       padding: 13px;
-      margin-top: 7px;
-      border: 1px solid #cbd5e1;
+      border: 1px solid #d1d5db;
       border-radius: 7px;
       font-size: 16px;
     }
 
     button {
       width: 100%;
-      padding: 14px;
       margin-top: 22px;
+      padding: 14px;
       border: 0;
       border-radius: 7px;
       background: #166534;
@@ -59,31 +69,43 @@
       cursor: pointer;
     }
 
-    button:disabled { opacity: 0.6; }
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
 
     #message {
       margin-top: 16px;
+      line-height: 1.5;
       overflow-wrap: anywhere;
-      text-align: left;
     }
 
-    a { color: #166534; }
-    .links { margin-top: 20px; text-align: center; }
+    .links {
+      margin-top: 22px;
+      line-height: 2;
+      text-align: center;
+    }
+
+    a {
+      color: #166534;
+    }
   </style>
 </head>
 
 <body>
   <main class="container">
     <h1>Customer Login</h1>
-    <p>Welcome back to Edesvino Marketplace.</p>
+    <p class="intro">
+      Welcome back to Edesvino Marketplace.
+    </p>
 
     <form id="loginForm">
       <label for="email">Email Address</label>
       <input
         type="email"
         id="email"
+        name="email"
         autocomplete="email"
-        placeholder="Enter your email"
         required
       >
 
@@ -91,49 +113,79 @@
       <input
         type="password"
         id="password"
+        name="password"
         autocomplete="current-password"
-        placeholder="Enter your password"
         required
       >
 
-      <button type="submit" id="loginButton">Log In</button>
+      <button type="submit" id="loginButton">
+        Log In
+      </button>
+
       <p id="message" role="status" aria-live="polite"></p>
     </form>
 
     <div class="links">
-      <p>Don't have an account?
+      <div>
+        Don't have an account?
         <a href="./customer-register.html">Register here</a>
-      </p>
-      <p><a href="./index.html">Back to Marketplace</a></p>
+      </div>
+      <div>
+        <a href="./index.html">Back to Marketplace</a>
+      </div>
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
-     const SUPABASE_URL =
+    const SUPABASE_URL =
       "https://lxszilqypuglxyfyukdg.supabase.co";
 
-     const SUPABASE_KEY =
-      sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh
-  
-    const client = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY,
-      {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-          storage: window.localStorage
-        }
-      }
-    );
+    const SUPABASE_KEY =
+      "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
     const form = document.getElementById("loginForm");
     const button = document.getElementById("loginButton");
     const message = document.getElementById("message");
 
+    let client = null;
+
+    try {
+      if (!window.supabase) {
+        throw new Error(
+          "Supabase did not load. Check your internet connection and reload the page."
+        );
+      }
+
+      client = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage
+          }
+        }
+      );
+    } catch (error) {
+      message.style.color = "#b91c1c";
+      message.textContent =
+        "Setup error: " + error.message;
+      button.disabled = true;
+    }
+
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
+
+      if (!client) {
+        message.style.color = "#b91c1c";
+        message.textContent =
+          "Login is unavailable because Supabase did not initialize.";
+        return;
+      }
 
       button.disabled = true;
       button.textContent = "Logging in...";
@@ -153,11 +205,13 @@
             password: password
           });
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         if (!data.session || !data.user) {
           throw new Error(
-            "Login completed, but no saved session was returned. Please try again."
+            "No login session was returned. Please try again."
           );
         }
 
@@ -173,8 +227,7 @@
         message.style.color = "#b91c1c";
         message.textContent =
           "Login failed: " +
-          (error.message ||
-            "Please check your details and try again.");
+          (error.message || "Please try again.");
 
         button.disabled = false;
         button.textContent = "Log In";
