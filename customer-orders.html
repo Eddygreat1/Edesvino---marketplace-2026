@@ -4,69 +4,119 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Orders - Edesvino Marketplace</title>
+  <title>My Orders | Edesvino Marketplace</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
       background: #f3f4f6;
       color: #222;
+      margin: 0;
+      padding: 18px;
     }
+
     .container {
       max-width: 700px;
-      margin: 0 auto;
+      margin: auto;
     }
-    h1 { color: #166534; }
-    .order {
-      background: white;
-      padding: 16px;
-      margin: 15px 0;
+
+    header {
+      background: #166534;
+      color: white;
+      padding: 20px;
       border-radius: 10px;
-      border: 1px solid #ddd;
+      margin-bottom: 20px;
     }
-    .amount {
-      font-size: 20px;
-      font-weight: bold;
-      color: #166534;
+
+    header h1 {
+      margin: 0 0 8px;
     }
-    .status {
-      display: inline-block;
-      padding: 5px 10px;
-      background: #fef3c7;
-      border-radius: 6px;
+
+    .links {
+      margin: 18px 0;
     }
-    .message {
-      background: white;
-      padding: 15px;
-      border-radius: 8px;
-      overflow-wrap: anywhere;
-    }
+
     a {
       color: #166534;
       font-weight: bold;
     }
-    button {
-      padding: 12px 16px;
-      border: 0;
+
+    .panel, .order-card {
+      background: white;
+      padding: 18px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow-wrap: anywhere;
+    }
+
+    .order-card {
+      border: 1px solid #ddd;
+    }
+
+    .order-card h2 {
+      margin-top: 0;
+      color: #166534;
+    }
+
+    .total {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .status {
+      display: inline-block;
+      background: #fef3c7;
+      padding: 7px 12px;
       border-radius: 6px;
+    }
+
+    button {
       background: #166534;
       color: white;
+      border: 0;
+      border-radius: 7px;
+      padding: 12px 16px;
       font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>My Orders</h1>
-    <p>View your Edesvino Marketplace orders.</p>
+  <main class="container">
+    <header>
+      <h1>My Orders</h1>
+      <p>Welcome to your Edesvino order history.</p>
+    </header>
 
-    <p><a href="./index.html">Back to Marketplace</a></p>
+    <nav class="links">
+      <a href="./index.html">Back to Marketplace</a>
+    </nav>
 
-    <div id="message" class="message">Loading your orders...</div>
-    <div id="orders"></div>
-  </div>
+    <section id="message" class="panel" aria-live="polite">
+      Checking your account...
+    </section>
+
+    <section id="orders"></section>
+
+    <button id="retryButton" class="hidden" type="button">
+      Try Again
+    </button>
+  </main>
 
   <script>
     const SUPABASE_URL =
@@ -82,32 +132,60 @@
 
     const message = document.getElementById("message");
     const ordersBox = document.getElementById("orders");
+    const retryButton = document.getElementById("retryButton");
 
     function showMessage(text) {
       message.textContent = text;
     }
 
+    function showError(text) {
+      showMessage(text);
+      retryButton.classList.remove("hidden");
+    }
+
+    function formatMoney(value) {
+      return "₦" + Number(value || 0).toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
     async function loadOrders() {
+      ordersBox.replaceChildren();
+      retryButton.classList.add("hidden");
+      showMessage("Loading your orders...");
+
       try {
         const { data: authData, error: authError } =
           await db.auth.getUser();
 
-        if (authError || !authData.user) {
-          showMessage("Please log in to view your orders.");
+        if (authError) {
+          showError("Unable to verify your login. Please try again.");
           return;
         }
 
-        const user = authData.user;
+        if (!authData.user) {
+          showMessage("Please log in before viewing your orders.");
+
+          const loginLink = document.createElement("a");
+          loginLink.href = "./customer-login.html";
+          loginLink.textContent = "Go to Customer Login";
+
+          message.appendChild(document.createElement("br"));
+          message.appendChild(document.createElement("br"));
+          message.appendChild(loginLink);
+          return;
+        }
 
         const { data: orders, error } = await db
           .from("orders")
           .select("id, product_name, total_amount, status")
-          .eq("customer_id", user.id)
+          .eq("customer_id", authData.user.id)
           .order("id", { ascending: false });
 
         if (error) {
-          showMessage(
-            "Could not load your orders. Please check the orders table's customer-only read permission in Supabase. Details: " +
+          showError(
+            "We couldn't load your orders. Supabase may need a secure policy allowing customers to read only their own orders. Details: " +
             error.message
           );
           return;
@@ -118,47 +196,45 @@
           return;
         }
 
-        showMessage("Your orders are loaded.");
+        showMessage("Your orders: " + orders.length);
 
         orders.forEach(function(order) {
-          const card = document.createElement("div");
-          card.className = "order";
+          const card = document.createElement("article");
+          card.className = "order-card";
 
-          const heading = document.createElement("h2");
-          heading.textContent = "Order #" + order.id;
+          const title = document.createElement("h2");
+          title.textContent = "Order #" + order.id;
 
           const product = document.createElement("p");
           product.textContent =
-            "Order reference item: " +
-            (order.product_name || "Product");
+            "Product: " + (order.product_name || "Order items");
 
-          const amount = document.createElement("p");
-          amount.className = "amount";
-          amount.textContent =
-            "Total: ₦" +
-            Number(order.total_amount || 0).toLocaleString(
-              "en-NG",
-              { minimumFractionDigits: 2,
-                maximumFractionDigits: 2 }
-            );
+          const total = document.createElement("p");
+          total.className = "total";
+          total.textContent =
+            "Total: " + formatMoney(order.total_amount);
 
           const status = document.createElement("p");
+          status.className = "status";
           status.textContent =
             "Status: " + (order.status || "Pending");
-          status.className = "status";
 
-          card.appendChild(heading);
+          card.appendChild(title);
           card.appendChild(product);
-          card.appendChild(amount);
+          card.appendChild(total);
           card.appendChild(status);
+
           ordersBox.appendChild(card);
         });
+
       } catch (error) {
-        showMessage(
-          "Something went wrong while loading orders. Please try again."
+        showError(
+          "A connection problem occurred. Please check your internet connection and try again."
         );
       }
     }
+
+    retryButton.addEventListener("click", loadOrders);
 
     loadOrders();
   </script>
