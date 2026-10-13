@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders - Edesvino Marketplace</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f3f4f6;
+      color: #222;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    h1 { color: #166534; }
+    .order {
+      background: white;
+      padding: 16px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+    .amount {
+      font-size: 20px;
+      font-weight: bold;
+      color: #166534;
+    }
+    .status {
+      display: inline-block;
+      padding: 5px 10px;
+      background: #fef3c7;
+      border-radius: 6px;
+    }
+    .message {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-wrap: anywhere;
+    }
+    a {
+      color: #166534;
+      font-weight: bold;
+    }
+    button {
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 6px;
+      background: #166534;
+      color: white;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>My Orders</h1>
+    <p>View your Edesvino Marketplace orders.</p>
+
+    <p><a href="./index.html">Back to Marketplace</a></p>
+
+    <div id="message" class="message">Loading your orders...</div>
+    <div id="orders"></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL =
+      "https://lxszilqypuglxyfyukdg.supabase.co";
+
+    const SUPABASE_KEY =
+      "sb_publishable_s0nFQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    const message = document.getElementById("message");
+    const ordersBox = document.getElementById("orders");
+
+    function showMessage(text) {
+      message.textContent = text;
+    }
+
+    async function loadOrders() {
+      try {
+        const { data: authData, error: authError } =
+          await db.auth.getUser();
+
+        if (authError || !authData.user) {
+          showMessage("Please log in to view your orders.");
+          return;
+        }
+
+        const user = authData.user;
+
+        const { data: orders, error } = await db
+          .from("orders")
+          .select("id, product_name, total_amount, status")
+          .eq("customer_id", user.id)
+          .order("id", { ascending: false });
+
+        if (error) {
+          showMessage(
+            "Could not load your orders. Please check the orders table's customer-only read permission in Supabase. Details: " +
+            error.message
+          );
+          return;
+        }
+
+        if (!orders || orders.length === 0) {
+          showMessage("You have no orders yet.");
+          return;
+        }
+
+        showMessage("Your orders are loaded.");
+
+        orders.forEach(function(order) {
+          const card = document.createElement("div");
+          card.className = "order";
+
+          const heading = document.createElement("h2");
+          heading.textContent = "Order #" + order.id;
+
+          const product = document.createElement("p");
+          product.textContent =
+            "Order reference item: " +
+            (order.product_name || "Product");
+
+          const amount = document.createElement("p");
+          amount.className = "amount";
+          amount.textContent =
+            "Total: ₦" +
+            Number(order.total_amount || 0).toLocaleString(
+              "en-NG",
+              { minimumFractionDigits: 2,
+                maximumFractionDigits: 2 }
+            );
+
+          const status = document.createElement("p");
+          status.textContent =
+            "Status: " + (order.status || "Pending");
+          status.className = "status";
+
+          card.appendChild(heading);
+          card.appendChild(product);
+          card.appendChild(amount);
+          card.appendChild(status);
+          ordersBox.appendChild(card);
+        });
+      } catch (error) {
+        showMessage(
+          "Something went wrong while loading orders. Please try again."
+        );
+      }
+    }
+
+    loadOrders();
+  </script>
+</body>
+</html>
