@@ -27,6 +27,7 @@ a{color:#087443}
 
 <body>
 <main>
+
 <header>
 <h1>Edesvino Seller Dashboard</h1>
 <p>Manage your products and customer orders.</p>
@@ -53,6 +54,7 @@ autocomplete="current-password" required>
 </section>
 
 <section id="dashboard" class="hidden">
+
 <div class="panel">
 <h2>Dashboard</h2>
 <p id="ownerMessage"></p>
@@ -95,6 +97,7 @@ autocomplete="current-password" required>
 <p>Review orders assigned to your seller account and update their status.</p>
 <div id="orders">Loading orders...</div>
 </div>
+
 </section>
 
 <footer class="panel">
@@ -102,6 +105,7 @@ autocomplete="current-password" required>
 Back to Marketplace
 </a>
 </footer>
+
 </main>
 
 <script>
@@ -129,12 +133,12 @@ let supabase;
 let currentUser = null;
 let busy = false;
 
-function message(element, text){
+function message(element,text){
   element.textContent = text;
 }
 
 function escapeHTML(value){
-  return String(value ?? "").replace(/[&<>"']/g, function(c){
+  return String(value ?? "").replace(/[&<>"']/g,function(c){
     return {
       "&":"&amp;",
       "<":"&lt;",
@@ -164,7 +168,9 @@ function showDashboard(){
 
 async function verifyOwner(user){
   if(!user || user.id !== OWNER_ID){
-    throw new Error("This account is not authorized to access the owner dashboard.");
+    throw new Error(
+      "This account is not authorized to access the owner dashboard."
+    );
   }
 
   const {data,error} = await supabase
@@ -176,11 +182,15 @@ async function verifyOwner(user){
   if(error) throw error;
 
   if(!data){
-    throw new Error("Owner verification failed. Your account was not found in platform_admins.");
+    throw new Error(
+      "Owner verification failed. Your account was not found in platform_admins."
+    );
   }
 
   return true;
 }
+
+/* LOAD PRODUCTS */
 
 async function loadProducts(){
   productsBox.textContent = "Loading products...";
@@ -191,7 +201,8 @@ async function loadProducts(){
     .order("id",{ascending:false});
 
   if(error){
-    productsBox.textContent = "Could not load products: " + error.message;
+    productsBox.textContent =
+      "Could not load products: " + error.message;
     return;
   }
 
@@ -212,100 +223,276 @@ async function loadProducts(){
   }).join("");
 }
 
+/* LOAD CUSTOMER ORDERS */
+
 async function loadOrders(){
   ordersBox.textContent = "Loading orders...";
 
-  const {data,error} = await supabase
-    .from("orders")
-    .select("id,product_name,price,customer_name,customer_phone,delivery_address,status,product_id,total_amount,quantity,seller_id")
-    .eq("seller_id",currentUser.id)
-    .order("id",{ascending:false});
+  try{
 
-  if(error){
-    ordersBox.textContent = "Could not load orders: " + error.message;
-    return;
-  }
+    /*
+      Step 1:
+      Retrieve this seller's order items.
+      Quantity and product price are stored in order_items.
+    */
 
-  if(!data || data.length === 0){
-    ordersBox.textContent =
-      "No orders were found for this seller account.";
-    return;
-  }
+    const {data:items,error:itemError} = await supabase
+      .from("order_items")
+      .select("id,order_id,product_name,price,quantity,seller_id,product_id")
+      .eq("seller_id",currentUser.id)
+      .order("order_id",{ascending:false});
 
-  ordersBox.innerHTML = data.map(function(o){
-    const status = String(o.status || "Pending");
-    const lower = status.toLowerCase();
+    if(itemError) throw itemError;
 
-    const options = ["Pending","Confirmed","Delivered"];
-    if(!options.some(s => s.toLowerCase() === lower)){
-      options.unshift(status);
+    if(!items || items.length === 0){
+      ordersBox.textContent =
+        "No orders were found for this seller account.";
+      return;
     }
 
-    return `
-      <div class="order">
-        <h3>Order #${escapeHTML(o.id)}</h3>
-        <p>Product: ${escapeHTML(o.product_name || "Not specified")}</p>
-        <p>Quantity: ${escapeHTML(o.quantity ?? 1)}</p>
-        <p>Unit price: ${naira(o.price)}</p>
-        <p>Total: ${naira(o.total_amount)}</p>
-        <p>Customer: ${escapeHTML(o.customer_name || "Not provided")}</p>
-        <p>Phone: ${escapeHTML(o.customer_phone || "Not provided")}</p>
-        <p>Delivery address: ${escapeHTML(o.delivery_address || "Not provided")}</p>
-        <p class="status">Current status: ${escapeHTML(status)}</p>
+    /*
+      Step 2:
+      Collect the unique order IDs.
+    */
 
-        <label for="status-${escapeHTML(o.id)}">Update status</label>
-        <select id="status-${escapeHTML(o.id)}">
-          ${options.map(s =>
-            `<option value="${escapeHTML(s)}"
-              ${s.toLowerCase() === lower ? "selected" : ""}>
-              ${escapeHTML(s)}
-            </option>`
-          ).join("")}
-        </select>
+    const orderIds = [
+      ...new Set(
+        items
+          .map(item => item.order_id)
+          .filter(id => id !== null && id !== undefined)
+      )
+    ];
 
-        <button type="button"
-          data-order-id="${escapeHTML(o.id)}"
-          class="saveStatus">Save Status</button>
+    if(orderIds.length === 0){
+      ordersBox.textContent =
+        "The seller's order items do not contain valid order IDs.";
+      return;
+    }
 
-        <p id="statusMessage-${escapeHTML(o.id)}" role="status"></p>
-      </div>`;
-  }).join("");
+    /*
+      Step 3:
+      Retrieve customer and delivery details from orders.
+      order_items.order_id references orders.id.
+    */
 
-  ordersBox.querySelectorAll(".saveStatus").forEach(function(button){
-    button.addEventListener("click", async function(){
-      await updateOrderStatus(button.dataset.orderId);
+    const {data:orders,error:orderError} = await supabase
+      .from("orders")
+      .select("id,product_name,customer_name,customer_phone,delivery_address,status,total_amount")
+      .in("id",orderIds)
+      .order("id",{ascending:false});
+
+    if(orderError) throw orderError;
+
+    const orderMap = new Map(
+      (orders || []).map(order => [String(order.id),order])
+    );
+
+    /*
+      Step 4:
+      Group items so an order containing several products
+      appears as one order rather than several separate orders.
+    */
+
+    const grouped = new Map();
+
+    items.forEach(function(item){
+      const key = String(item.order_id);
+
+      if(!grouped.has(key)){
+        grouped.set(key,[]);
+      }
+
+      grouped.get(key).push(item);
     });
-  });
+
+    ordersBox.innerHTML = Array.from(grouped.entries())
+      .sort((a,b) => Number(b[0]) - Number(a[0]))
+      .map(function(entry){
+
+        const orderId = entry[0];
+        const orderItems = entry[1];
+        const order = orderMap.get(orderId);
+
+        if(!order){
+          return `
+            <div class="order">
+              <h3>Order #${escapeHTML(orderId)}</h3>
+              <p class="notice">
+                The matching customer order could not be loaded.
+                Check the orders table permissions and order ID.
+              </p>
+            </div>`;
+        }
+
+        const status = String(order.status || "Pending");
+        const lower = status.toLowerCase();
+
+        const options = ["Pending","Confirmed","Delivered"];
+
+        if(!options.some(s => s.toLowerCase() === lower)){
+          options.unshift(status);
+        }
+
+        const itemTotal = orderItems.reduce(function(sum,item){
+          return sum +
+            Number(item.price || 0) *
+            Number(item.quantity || 1);
+        },0);
+
+        const productDetails = orderItems.map(function(item){
+          const quantity = Number(item.quantity || 1);
+          const price = Number(item.price || 0);
+
+          return `
+            <div class="product">
+              <strong>${escapeHTML(
+                item.product_name || "Product not specified"
+              )}</strong>
+              <p>Quantity: ${escapeHTML(quantity)}</p>
+              <p>Unit price: ${naira(price)}</p>
+              <p>Item subtotal: ${naira(price * quantity)}</p>
+              <p>Product ID: ${escapeHTML(
+                item.product_id ?? "Not available"
+              )}</p>
+            </div>`;
+        }).join("");
+
+        const displayedTotal =
+          order.total_amount !== null &&
+          order.total_amount !== undefined
+            ? naira(order.total_amount)
+            : naira(itemTotal);
+
+        return `
+          <div class="order">
+
+            <h3>Order #${escapeHTML(order.id)}</h3>
+
+            <h4>Products ordered</h4>
+            ${productDetails}
+
+            <p><strong>Total order amount:</strong>
+              ${displayedTotal}</p>
+
+            <p>Customer:
+              ${escapeHTML(order.customer_name || "Not provided")}</p>
+
+            <p>Phone:
+              ${escapeHTML(order.customer_phone || "Not provided")}</p>
+
+            <p>Delivery address:
+              ${escapeHTML(
+                order.delivery_address || "Not provided"
+              )}</p>
+
+            <p class="status">
+              Current status: ${escapeHTML(status)}
+            </p>
+
+            <label for="status-${escapeHTML(order.id)}">
+              Update status
+            </label>
+
+            <select id="status-${escapeHTML(order.id)}">
+              ${options.map(function(s){
+                return `
+                  <option value="${escapeHTML(s)}"
+                    ${s.toLowerCase() === lower ? "selected" : ""}>
+                    ${escapeHTML(s)}
+                  </option>`;
+              }).join("")}
+            </select>
+
+            <button type="button"
+              data-order-id="${escapeHTML(order.id)}"
+              class="saveStatus">
+              Save Status
+            </button>
+
+            <p id="statusMessage-${escapeHTML(order.id)}"
+              role="status"></p>
+
+          </div>`;
+      }).join("");
+
+    ordersBox.querySelectorAll(".saveStatus")
+      .forEach(function(button){
+        button.addEventListener("click",async function(){
+          await updateOrderStatus(button.dataset.orderId);
+        });
+      });
+
+  }catch(error){
+    ordersBox.textContent =
+      "Could not load orders: " + error.message;
+  }
 }
 
+/* UPDATE ORDER STATUS */
+
 async function updateOrderStatus(orderId){
+
   const select = document.getElementById("status-" + orderId);
-  const result = document.getElementById("statusMessage-" + orderId);
-  const button = ordersBox.querySelector(
-    `.saveStatus[data-order-id="${CSS.escape(String(orderId))}"]`
+
+  const result = document.getElementById(
+    "statusMessage-" + orderId
   );
+
+  const button = Array.from(
+    ordersBox.querySelectorAll(".saveStatus")
+  ).find(function(b){
+    return String(b.dataset.orderId) === String(orderId);
+  });
 
   if(!select || !result || !button) return;
 
   button.disabled = true;
-  message(result,"Saving status...");
+  message(result,"Checking order and saving status...");
 
   try{
+
+    /*
+      Verify that the current seller has an item
+      belonging to this order.
+    */
+
+    const {data:ownedItems,error:ownershipError} = await supabase
+      .from("order_items")
+      .select("id")
+      .eq("order_id",orderId)
+      .eq("seller_id",currentUser.id)
+      .limit(1);
+
+    if(ownershipError) throw ownershipError;
+
+    if(!ownedItems || ownedItems.length === 0){
+      throw new Error(
+        "This order is not assigned to your seller account."
+      );
+    }
+
+    /*
+      Update orders using its real columns.
+      orders does not need a seller_id column for this query.
+    */
+
     const {data,error} = await supabase
       .from("orders")
       .update({status:select.value})
       .eq("id",orderId)
-      .eq("seller_id",currentUser.id)
       .select("id,status")
       .maybeSingle();
 
     if(error) throw error;
 
     if(!data){
-      throw new Error("No order was updated. Check the database update permissions.");
+      throw new Error(
+        "No order was updated. Supabase may be blocking the update. Check your database permissions."
+      );
     }
 
     message(result,"Order status saved: " + data.status);
+
     await loadOrders();
 
   }catch(error){
@@ -315,103 +502,168 @@ async function updateOrderStatus(orderId){
   }
 }
 
-document.getElementById("loginForm").addEventListener("submit",async function(event){
-  event.preventDefault();
+/* OWNER LOGIN */
 
-  const button = document.getElementById("loginButton");
-  button.disabled = true;
-  message(loginMessage,"Signing in...");
+document.getElementById("loginForm")
+  .addEventListener("submit",async function(event){
 
-  try{
-    const {data,error} = await supabase.auth.signInWithPassword({
-      email:document.getElementById("email").value.trim(),
-      password:document.getElementById("password").value
-    });
+    event.preventDefault();
 
-    if(error) throw error;
+    const button = document.getElementById("loginButton");
+    button.disabled = true;
+    message(loginMessage,"Signing in...");
 
-    currentUser = data.user;
-    await verifyOwner(currentUser);
+    try{
 
-    showDashboard();
-    message(connection,"Connected to Edesvino.");
-    message(document.getElementById("ownerMessage"),
-      "Owner verified. Login successful.");
+      const {data,error} = await supabase.auth.signInWithPassword({
+        email:document.getElementById("email").value.trim(),
+        password:document.getElementById("password").value
+      });
+
+      if(error) throw error;
+
+      currentUser = data.user;
+
+      await verifyOwner(currentUser);
+
+      showDashboard();
+
+      message(connection,"Connected to Edesvino.");
+
+      message(
+        document.getElementById("ownerMessage"),
+        "Owner verified. Login successful."
+      );
+
+      await loadProducts();
+      await loadOrders();
+
+    }catch(error){
+
+      message(loginMessage,error.message);
+
+      if(error.message.includes("Invalid API key")){
+        message(connection,"Supabase rejected the API key.");
+      }
+
+    }finally{
+      button.disabled = false;
+    }
+});
+
+/* ADD PRODUCT */
+
+document.getElementById("productForm")
+  .addEventListener("submit",async function(event){
+
+    event.preventDefault();
+
+    if(!currentUser || busy) return;
+
+    busy = true;
+
+    const button = document.getElementById("addButton");
+    button.disabled = true;
+
+    message(productMessage,"Adding product...");
+
+    try{
+
+      const name =
+        document.getElementById("productName").value.trim();
+
+      const price =
+        Number(document.getElementById("productPrice").value);
+
+      const store =
+        document.getElementById("storeName").value.trim();
+
+      const image_url =
+        document.getElementById("imageUrl").value.trim();
+
+      const description =
+        document.getElementById("description").value.trim();
+
+      if(!name || !store || !Number.isFinite(price) || price <= 0){
+        throw new Error(
+          "Enter a product name, valid price, and store name."
+        );
+      }
+
+      const {error} = await supabase
+        .from("products")
+        .insert([{
+          name,
+          price,
+          store,
+          seller_id:currentUser.id,
+          image_url:image_url || null,
+          description:description || null
+        }]);
+
+      if(error) throw error;
+
+      message(productMessage,"Product added successfully.");
+
+      document.getElementById("productForm").reset();
+
+      await loadProducts();
+
+    }catch(error){
+
+      message(
+        productMessage,
+        "Could not add product: " + error.message
+      );
+
+    }finally{
+      busy = false;
+      button.disabled = false;
+    }
+});
+
+/* REFRESH */
+
+document.getElementById("refreshButton")
+  .addEventListener("click",async function(){
 
     await loadProducts();
     await loadOrders();
 
-  }catch(error){
-    message(loginMessage,error.message);
-    if(error.message.includes("Invalid API key")){
-      message(connection,"Supabase rejected the API key.");
-    }
-  }finally{
-    button.disabled = false;
-  }
 });
 
-document.getElementById("productForm").addEventListener("submit",async function(event){
-  event.preventDefault();
+/* LOG OUT */
 
-  if(!currentUser || busy) return;
+document.getElementById("logoutButton")
+  .addEventListener("click",async function(){
 
-  busy = true;
-  const button = document.getElementById("addButton");
-  button.disabled = true;
-  message(productMessage,"Adding product...");
+    const {error} = await supabase.auth.signOut();
 
-  try{
-    const name = document.getElementById("productName").value.trim();
-    const price = Number(document.getElementById("productPrice").value);
-    const store = document.getElementById("storeName").value.trim();
-    const image_url = document.getElementById("imageUrl").value.trim();
-    const description = document.getElementById("description").value.trim();
-
-    if(!name || !store || !Number.isFinite(price) || price <= 0){
-      throw new Error("Enter a product name, valid price, and store name.");
+    if(error){
+      message(connection,"Could not log out: " + error.message);
+      return;
     }
 
-    const {error} = await supabase.from("products").insert([{
-      name,
-      price,
-      store,
-      seller_id:currentUser.id,
-      image_url:image_url || null,
-      description:description || null
-    }]);
+    currentUser = null;
 
-    if(error) throw error;
+    showLogin();
 
-    message(productMessage,"Product added successfully.");
-    document.getElementById("productForm").reset();
-    await loadProducts();
+    message(connection,"Disconnected from Edesvino.");
 
-  }catch(error){
-    message(productMessage,"Could not add product: " + error.message);
-  }finally{
-    busy = false;
-    button.disabled = false;
-  }
+    message(loginMessage,"You have logged out.");
+
 });
 
-document.getElementById("refreshButton").addEventListener("click",async function(){
-  await loadProducts();
-  await loadOrders();
-});
-
-document.getElementById("logoutButton").addEventListener("click",async function(){
-  await supabase.auth.signOut();
-  currentUser = null;
-  showLogin();
-  message(connection,"Disconnected from Edesvino.");
-  message(loginMessage,"You have logged out.");
-});
+/* START APPLICATION */
 
 async function start(){
+
   try{
+
     if(!window.supabase){
-      throw new Error("Supabase library did not load. Check your internet connection.");
+      throw new Error(
+        "Supabase library did not load. Check your internet connection."
+      );
     }
 
     supabase = window.supabase.createClient(
@@ -420,36 +672,55 @@ async function start(){
     );
 
     const {data,error} = await supabase.auth.getSession();
+
     if(error) throw error;
 
     message(connection,"Connected to Edesvino.");
 
     if(data.session && data.session.user){
+
       currentUser = data.session.user;
 
       try{
+
         await verifyOwner(currentUser);
+
         showDashboard();
-        message(document.getElementById("ownerMessage"),
-          "Owner verified. Login successful.");
+
+        message(
+          document.getElementById("ownerMessage"),
+          "Owner verified. Login successful."
+        );
+
         await loadProducts();
         await loadOrders();
+
       }catch(error){
+
         showLogin();
         message(loginMessage,error.message);
+
       }
+
     }else{
+
       showLogin();
+
     }
 
   }catch(error){
+
     message(connection,"Connection error: " + error.message);
+
     showLogin();
+
   }
 }
 
 start();
+
 })();
 </script>
+
 </body>
 </html>
