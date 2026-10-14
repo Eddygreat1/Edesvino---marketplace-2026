@@ -33,7 +33,7 @@
 
     h1, h2 { color: #147a43; }
 
-    input, textarea, button {
+    input, textarea, button, select {
       width: 100%;
       padding: 12px;
       margin: 7px 0;
@@ -41,8 +41,9 @@
       font-size: 16px;
     }
 
-    input, textarea {
+    input, textarea, select {
       border: 1px solid #ccc;
+      background: white;
     }
 
     button {
@@ -53,15 +54,14 @@
       cursor: pointer;
     }
 
-    .secondary {
-      background: #555;
-    }
+    .secondary { background: #555; }
 
-    .product {
+    .product, .order {
       border: 1px solid #ddd;
       padding: 12px;
       border-radius: 8px;
       margin: 10px 0;
+      overflow-wrap: anywhere;
     }
 
     #message {
@@ -73,6 +73,11 @@
     .success { color: #147a43 !important; }
 
     a { color: #147a43; }
+
+    .status-label {
+      font-weight: bold;
+      color: #147a43;
+    }
   </style>
 </head>
 
@@ -81,7 +86,7 @@
 
   <div class="card">
     <h1>Edesvino Seller Dashboard</h1>
-    <p>Manage your products on Edesvino Marketplace.</p>
+    <p>Manage your products and customer orders.</p>
     <p id="status">Connecting to Edesvino...</p>
     <p id="message"></p>
   </div>
@@ -91,21 +96,13 @@
     <p>Sign in with your existing marketplace owner account.</p>
 
     <form id="loginForm">
-      <input
-        id="email"
-        type="email"
+      <input id="email" type="email"
         placeholder="Email Address"
-        autocomplete="username"
-        required
-      >
+        autocomplete="username" required>
 
-      <input
-        id="password"
-        type="password"
+      <input id="password" type="password"
         placeholder="Password"
-        autocomplete="current-password"
-        required
-      >
+        autocomplete="current-password" required>
 
       <button type="submit">Log In</button>
     </form>
@@ -126,33 +123,35 @@
     <h2>Add a Product</h2>
 
     <form id="productForm">
-      <input id="productName" placeholder="Product Name" required>
+      <input id="productName"
+        placeholder="Product Name" required>
 
-      <input
-        id="productPrice"
-        type="number"
-        min="0.01"
-        step="0.01"
-        placeholder="Price in Naira"
-        required
-      >
+      <input id="productPrice"
+        type="number" min="0.01" step="0.01"
+        placeholder="Price in Naira" required>
 
-      <input id="storeName" placeholder="Store Name" required>
+      <input id="storeName"
+        placeholder="Store Name" required>
 
-      <textarea
-        id="productDescription"
-        placeholder="Product Description"
-        rows="3"
-      ></textarea>
+      <textarea id="productDescription"
+        placeholder="Product Description" rows="3"></textarea>
 
-      <input
-        id="productImage"
-        type="url"
-        placeholder="Product Image URL (optional)"
-      >
+      <input id="productImage" type="url"
+        placeholder="Product Image URL (optional)">
 
       <button type="submit">Add Product</button>
     </form>
+
+    <hr>
+
+    <h2>Customer Orders</h2>
+    <p>Orders associated with your seller account.</p>
+
+    <button id="refreshOrdersButton" type="button">
+      Refresh Orders
+    </button>
+
+    <div id="ordersList">Orders have not loaded yet.</div>
 
     <button id="logoutButton" class="secondary" type="button">
       Log Out
@@ -169,7 +168,7 @@
     "https://lxszilqypuglxyfyukdg.supabase.co";
 
   const SUPABASE_KEY =
-    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+    "sb_publishable_s0nFQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
   const OWNER_ID =
     "b860b02d-0bf3-4b8d-87f8-965753f22f72";
@@ -179,6 +178,7 @@
   const loginSection = document.getElementById("loginSection");
   const dashboardSection = document.getElementById("dashboardSection");
   const productsList = document.getElementById("productsList");
+  const ordersList = document.getElementById("ordersList");
 
   let supabaseClient;
   let currentUser = null;
@@ -189,10 +189,16 @@
   }
 
   function naira(value) {
-    return "₦" + Number(value).toLocaleString("en-NG", {
+    return "₦" + Number(value || 0).toLocaleString("en-NG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+  }
+
+  function safeText(value) {
+    return value === null || value === undefined || value === ""
+      ? "Not provided"
+      : String(value);
   }
 
   async function initialize() {
@@ -229,8 +235,6 @@
   }
 
   async function verifyOwner(user) {
-    currentUser = user;
-
     if (!user || user.id !== OWNER_ID) {
       await supabaseClient.auth.signOut();
       currentUser = null;
@@ -256,36 +260,43 @@
       return;
     }
 
+    currentUser = user;
     loginSection.hidden = true;
     dashboardSection.hidden = false;
     statusEl.textContent = "Owner verified.";
+
     document.getElementById("accountInfo").textContent =
       "Signed in as " + user.email;
 
     showMessage("Login successful.", true);
+
     await loadProducts();
+    await loadOrders();
   }
 
-  document.getElementById("loginForm").addEventListener("submit", async function (event) {
-    event.preventDefault();
-    showMessage("Signing in...");
+  document.getElementById("loginForm").addEventListener("submit",
+    async function (event) {
+      event.preventDefault();
+      showMessage("Signing in...");
 
-    try {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
+      try {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
 
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      });
+        const { data, error } =
+          await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+          });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await verifyOwner(data.user);
-    } catch (error) {
-      showMessage("Login or verification failed: " + error.message);
+        await verifyOwner(data.user);
+      } catch (error) {
+        showMessage("Login or verification failed: " + error.message);
+      }
     }
-  });
+  );
 
   async function loadProducts() {
     if (!currentUser) return;
@@ -322,7 +333,7 @@
       price.textContent = "Price: " + naira(product.price);
 
       const store = document.createElement("p");
-      store.textContent = "Store: " + (product.store || "Not specified");
+      store.textContent = "Store: " + safeText(product.store);
 
       const description = document.createElement("p");
       description.textContent = product.description || "";
@@ -332,61 +343,235 @@
     });
   }
 
-  document.getElementById("refreshButton").addEventListener("click", loadProducts);
+  document.getElementById("refreshButton")
+    .addEventListener("click", loadProducts);
 
-  document.getElementById("productForm").addEventListener("submit", async function (event) {
-    event.preventDefault();
+  document.getElementById("productForm").addEventListener("submit",
+    async function (event) {
+      event.preventDefault();
 
-    if (!currentUser || currentUser.id !== OWNER_ID) {
-      showMessage("Please sign in with the owner account first.");
-      return;
+      if (!currentUser || currentUser.id !== OWNER_ID) {
+        showMessage("Please sign in with the owner account first.");
+        return;
+      }
+
+      const name = document.getElementById("productName").value.trim();
+      const price = Number(document.getElementById("productPrice").value);
+      const store = document.getElementById("storeName").value.trim();
+      const description =
+        document.getElementById("productDescription").value.trim();
+      const image_url =
+        document.getElementById("productImage").value.trim();
+
+      if (!name || !store || !Number.isFinite(price) || price <= 0) {
+        showMessage("Enter a product name, store name, and valid price.");
+        return;
+      }
+
+      showMessage("Adding product...");
+
+      const newProduct = {
+        name,
+        price,
+        store,
+        seller_id: currentUser.id,
+        description,
+        image_url: image_url || null
+      };
+
+      const { error } = await supabaseClient
+        .from("products")
+        .insert(newProduct);
+
+      if (error) {
+        showMessage("Product was not added: " + error.message);
+        return;
+      }
+
+      document.getElementById("productForm").reset();
+      showMessage("Product added successfully.", true);
+      await loadProducts();
     }
+  );
 
-    const name = document.getElementById("productName").value.trim();
-    const price = Number(document.getElementById("productPrice").value);
-    const store = document.getElementById("storeName").value.trim();
-    const description = document.getElementById("productDescription").value.trim();
-    const image_url = document.getElementById("productImage").value.trim();
+  async function loadOrders() {
+    if (!currentUser) return;
 
-    if (!name || !store || !Number.isFinite(price) || price <= 0) {
-      showMessage("Enter a product name, store name, and valid price.");
-      return;
-    }
+    ordersList.textContent = "Loading orders...";
 
-    showMessage("Adding product...");
-
-    const newProduct = {
-      name,
-      price,
-      store,
-      seller_id: currentUser.id,
-      description,
-      image_url: image_url || null
-    };
-
-    const { error } = await supabaseClient
-      .from("products")
-      .insert(newProduct);
+    const { data, error } = await supabaseClient
+      .from("orders")
+      .select(
+        "id, product_name, price, customer_name, customer_phone, delivery_address, seller_id, status, product_id, customer_id, total_amount, quantity"
+      )
+      .eq("seller_id", currentUser.id)
+      .order("id", { ascending: false });
 
     if (error) {
-      showMessage("Product was not added: " + error.message);
+      ordersList.textContent =
+        "Could not load orders: " + error.message;
       return;
     }
 
-    document.getElementById("productForm").reset();
-    showMessage("Product added successfully.", true);
-    await loadProducts();
-  });
+    ordersList.innerHTML = "";
 
-  document.getElementById("logoutButton").addEventListener("click", async function () {
-    const { error } = await supabaseClient.auth.signOut();
+    if (!data || data.length === 0) {
+      ordersList.textContent = "No orders found for your products.";
+      return;
+    }
 
-    currentUser = null;
-    loginSection.hidden = false;
-    dashboardSection.hidden = true;
+    data.forEach(function (order) {
+      const card = document.createElement("div");
+      card.className = "order";
 
-    showMessage(error ? error.message : "You have logged out.", !error);
-  });
+      const heading = document.createElement("h3");
+      heading.textContent = "Order #" + safeText(order.id);
+
+      const product = document.createElement("p");
+      product.textContent = "Product: " + safeText(order.product_name);
+
+      const quantity = document.createElement("p");
+      quantity.textContent = "Quantity: " + safeText(order.quantity);
+
+      const price = document.createElement("p");
+      price.textContent = "Unit Price: " + naira(order.price);
+
+      const total = document.createElement("p");
+      total.textContent = "Order Total: " + naira(order.total_amount);
+
+      const customer = document.createElement("p");
+      customer.textContent = "Customer: " + safeText(order.customer_name);
+
+      const phone = document.createElement("p");
+      phone.textContent = "Phone: " + safeText(order.customer_phone);
+
+      const address = document.createElement("p");
+      address.textContent = "Delivery Address: " +
+        safeText(order.delivery_address);
+
+      const statusText = document.createElement("p");
+      statusText.className = "status-label";
+      statusText.textContent = "Current Status: " +
+        safeText(order.status);
+
+      const label = document.createElement("label");
+      label.textContent = "Update order status";
+
+      const select = document.createElement("select");
+
+      const statuses = [
+        { value: "pending", label: "Pending" },
+        { value: "confirmed", label: "Confirmed" },
+        { value: "delivered", label: "Delivered" }
+      ];
+
+      const existingStatus = String(order.status || "").toLowerCase();
+
+      statuses.forEach(function (item) {
+        const option = document.createElement("option");
+        option.value = item.value;
+        option.textContent = item.label;
+
+        if (existingStatus === item.value) {
+          option.selected = true;
+        }
+
+        select.appendChild(option);
+      });
+
+      if (!statuses.some(function (item) {
+        return item.value === existingStatus;
+      })) {
+        const option = document.createElement("option");
+        option.value = existingStatus;
+        option.textContent = safeText(order.status);
+        option.selected = true;
+        select.insertBefore(option, select.firstChild);
+      }
+
+      const updateButton = document.createElement("button");
+      updateButton.type = "button";
+      updateButton.textContent = "Save Status";
+
+      const feedback = document.createElement("p");
+
+      updateButton.addEventListener("click", async function () {
+        if (!currentUser || currentUser.id !== OWNER_ID) {
+          feedback.textContent = "Please sign in again.";
+          return;
+        }
+
+        updateButton.disabled = true;
+        feedback.textContent = "Saving status...";
+
+        try {
+          const { data: updatedRows, error: updateError } =
+            await supabaseClient
+              .from("orders")
+              .update({ status: select.value })
+              .eq("id", order.id)
+              .eq("seller_id", currentUser.id)
+              .select("id, status");
+
+          if (updateError) throw updateError;
+
+          if (!updatedRows || updatedRows.length === 0) {
+            feedback.textContent =
+              "Status was not changed. Supabase may require an order-update permission.";
+            return;
+          }
+
+          order.status = updatedRows[0].status;
+          statusText.textContent =
+            "Current Status: " + safeText(order.status);
+
+          feedback.textContent = "Order status updated successfully.";
+          showMessage("Order #" + order.id + " status updated.", true);
+        } catch (error) {
+          feedback.textContent =
+            "Could not update status: " + error.message;
+        } finally {
+          updateButton.disabled = false;
+        }
+      });
+
+      card.append(
+        heading,
+        product,
+        quantity,
+        price,
+        total,
+        customer,
+        phone,
+        address,
+        statusText,
+        label,
+        select,
+        updateButton,
+        feedback
+      );
+
+      ordersList.appendChild(card);
+    });
+  }
+
+  document.getElementById("refreshOrdersButton")
+    .addEventListener("click", loadOrders);
+
+  document.getElementById("logoutButton").addEventListener("click",
+    async function () {
+      const { error } = await supabaseClient.auth.signOut();
+
+      currentUser = null;
+      loginSection.hidden = false;
+      dashboardSection.hidden = true;
+
+      showMessage(
+        error ? error.message : "You have logged out.",
+        !error
+      );
+    }
+  );
 
   initialize();
 })();
