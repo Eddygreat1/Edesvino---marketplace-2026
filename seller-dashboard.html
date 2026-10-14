@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seller Dashboard | Edesvino Marketplace</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: auto;
+    }
+
+    header {
+      background: #075e35;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .card {
+      background: white;
+      padding: 18px;
+      margin-bottom: 18px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #0000000d;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      font-weight: bold;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    input, textarea {
+      border: 1px solid #ccc;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    button {
+      border: none;
+      background: #087443;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+    }
+
+    .secondary {
+      background: #444;
+    }
+
+    .danger {
+      background: #a52323;
+    }
+
+    .product {
+      border: 1px solid #ddd;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .product img {
+      width: 100%;
+      max-width: 180px;
+      max-height: 160px;
+      object-fit: contain;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .product p {
+      overflow-wrap: anywhere;
+    }
+
+    .status {
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      background: #e8f3ed;
+      overflow-wrap: anywhere;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 14px;
+    }
+
+    a {
+      color: #075e35;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <header>
+    <h1>Edesvino Seller Dashboard</h1>
+    <p>Manage your products on Edesvino Marketplace.</p>
+  </header>
+
+  <div id="status" class="status" role="status">
+    Connecting to Edesvino...
+  </div>
+
+  <section id="loginSection" class="card hidden">
+    <h2>Owner Login</h2>
+    <p>Sign in with your existing marketplace owner account.</p>
+
+    <form id="loginForm">
+      <label for="email">Email Address</label>
+      <input id="email" type="email" autocomplete="username" required>
+
+      <label for="password">Password</label>
+      <input id="password" type="password"
+             autocomplete="current-password" required>
+
+      <button type="submit">Log In</button>
+    </form>
+
+    <p class="muted">
+      This page does not create a new account.
+    </p>
+  </section>
+
+  <section id="dashboard" class="hidden">
+
+    <div class="card">
+      <h2>Account</h2>
+      <p id="accountInfo"></p>
+      <button id="refreshButton" type="button">
+        Refresh Products
+      </button>
+      <button id="logoutButton" type="button" class="secondary">
+        Log Out
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>Add a Product</h2>
+
+      <form id="productForm">
+        <label for="productName">Product Name</label>
+        <input id="productName" maxlength="150" required>
+
+        <label for="productPrice">Price in Naira (₦)</label>
+        <input id="productPrice" type="number"
+               min="0.01" step="0.01" required>
+
+        <label for="storeName">Store Name</label>
+        <input id="storeName" value="Edesvino Digital Hub"
+               maxlength="150" required>
+
+        <label for="productDescription">Description</label>
+        <textarea id="productDescription"
+                  maxlength="5000" required></textarea>
+
+        <label for="productImage">Product Image URL (optional)</label>
+        <input id="productImage" type="url"
+               placeholder="https://example.com/product.jpg">
+
+        <button id="addButton" type="submit">
+          Add Product
+        </button>
+      </form>
+
+      <p class="muted">
+        Products are saved to your existing Supabase products table.
+        If database permissions prevent saving, the page will display
+        the error instead of changing your security settings.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>My Products</h2>
+      <div id="productsList">Loading products...</div>
+    </div>
+
+    <p>
+      <a href="./">Back to Marketplace</a>
+    </p>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
+
+  const SUPABASE_KEY =
+    "sb_publishable_s0nFQ
