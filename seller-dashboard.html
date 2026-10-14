@@ -625,10 +625,22 @@ document.getElementById("productForm")
 /* REFRESH */
 
 document.getElementById("refreshButton")
-  .addEventListener("click",async function(){
+  .addEventListener("click", async function(){
 
-    await loadProducts();
-    await loadOrders();
+    const button = this;
+    button.disabled = true;
+    button.textContent = "Refreshing...";
+
+    try {
+      await loadProducts();
+      await loadOrders();
+    } catch (error) {
+      console.error("Dashboard refresh failed:", error);
+      message(connection, "Refresh failed: " + error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Refresh Dashboard";
+    }
 
 });
 
