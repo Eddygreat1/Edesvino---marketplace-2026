@@ -235,4 +235,311 @@
     "https://lxszilqypuglxyfyukdg.supabase.co";
 
   const SUPABASE_KEY =
-    "sb_publishable_s0nFQ
+    "sb_publishable_s0nFQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  const OWNER_ID =
+    "b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+  const statusBox = document.getElementById("status");
+  const loginSection = document.getElementById("loginSection");
+  const dashboard = document.getElementById("dashboard");
+  const productsList = document.getElementById("productsList");
+
+  let supabase;
+  let currentUser = null;
+  let busy = false;
+
+  function showStatus(message) {
+    statusBox.textContent = message;
+    statusBox.classList.remove("hidden");
+  }
+
+  function setBusy(value) {
+    busy = value;
+    document.querySelectorAll("button").forEach(function (button) {
+      button.disabled = value;
+    });
+  }
+
+  function showLogin() {
+    loginSection.classList.remove("hidden");
+    dashboard.classList.add("hidden");
+  }
+
+  function showDashboard() {
+    loginSection.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+  }
+
+  function addTextElement(parent, tag, text, className) {
+    const element = document.createElement(tag);
+    element.textContent = text;
+
+    if (className) {
+      element.className = className;
+    }
+
+    parent.appendChild(element);
+    return element;
+  }
+
+  async function checkOwner(user) {
+    if (!user || user.id !== OWNER_ID) {
+      throw new Error(
+        "This account is not the configured marketplace owner account."
+      );
+    }
+
+    const result = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .limit(1);
+
+    if (result.error) {
+      throw new Error(
+        "Could not verify owner permissions: " + result.error.message
+      );
+    }
+
+    if (!result.data || result.data.length === 0) {
+      throw new Error(
+        "Your account was not found in the platform_admins table."
+      );
+    }
+
+    currentUser = user;
+    document.getElementById("accountInfo").textContent =
+      "Verified marketplace owner. Account ID: " + user.id;
+
+    showDashboard();
+  }
+
+  async function loadProducts() {
+    if (!currentUser) return;
+
+    productsList.textContent = "Loading products...";
+
+    const result = await supabase
+      .from("products")
+      .select("id, name, price, store, seller_id, image_url, description")
+      .eq("seller_id", currentUser.id)
+      .order("id", { ascending: false });
+
+    if (result.error) {
+      productsList.textContent =
+        "Unable to load products: " + result.error.message;
+      return;
+    }
+
+    productsList.replaceChildren();
+
+    if (!result.data || result.data.length === 0) {
+      addTextElement(
+        productsList,
+        "p",
+        "No products were found for this account."
+      );
+      return;
+    }
+
+    result.data.forEach(function (product) {
+      const card = document.createElement("div");
+      card.className = "product";
+
+      if (product.image_url) {
+        try {
+          const imageURL = new URL(product.image_url);
+
+          if (imageURL.protocol === "https:" ||
+              imageURL.protocol === "http:") {
+            const image = document.createElement("img");
+            image.src = imageURL.href;
+            image.alt = product.name || "Product";
+            image.loading = "lazy";
+            image.onerror = function () {
+              image.remove();
+            };
+            card.appendChild(image);
+          }
+        } catch (_) {}
+      }
+
+      addTextElement(card, "h3", product.name || "Unnamed product");
+      addTextElement(
+        card,
+        "p",
+        "Price: ₦" + Number(product.price || 0).toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })
+      );
+
+      addTextElement(card, "p", "Store: " + (product.store || "Not specified"));
+      addTextElement(card, "p", "Product ID: " + product.id);
+      addTextElement(
+        card,
+        "p",
+        product.description || "No description provided."
+      );
+
+      productsList.appendChild(card);
+    });
+  }
+
+  document.getElementById("loginForm").addEventListener(
+    "submit",
+    async function (event) {
+      event.preventDefault();
+
+      if (busy) return;
+      setBusy(true);
+
+      try {
+        const result = await supabase.auth.signInWithPassword({
+          email: document.getElementById("email").value.trim(),
+          password: document.getElementById("password").value
+        });
+
+        if (result.error) throw result.error;
+
+        await checkOwner(result.data.user);
+        showStatus("Owner account verified.");
+        await loadProducts();
+      } catch (error) {
+        showLogin();
+        showStatus("Login or verification failed: " + error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+  );
+
+  document.getElementById("productForm").addEventListener(
+    "submit",
+    async function (event) {
+      event.preventDefault();
+
+      if (busy || !currentUser) return;
+      setBusy(true);
+
+      try {
+        const name = document.getElementById("productName").value.trim();
+        const price = Number(document.getElementById("productPrice").value);
+        const store = document.getElementById("storeName").value.trim();
+        const description =
+          document.getElementById("productDescription").value.trim();
+        const imageURL =
+          document.getElementById("productImage").value.trim();
+
+        if (!name || !store || !description ||
+            !Number.isFinite(price) || price <= 0) {
+          throw new Error("Please enter valid product details.");
+        }
+
+        if (imageURL) {
+          const parsedURL = new URL(imageURL);
+          if (parsedURL.protocol !== "https:" &&
+              parsedURL.protocol !== "http:") {
+            throw new Error("Please enter a valid image URL.");
+          }
+        }
+
+        const product = {
+          name: name,
+          price: price,
+          store: store,
+          seller_id: currentUser.id,
+          description: description,
+          image_url: imageURL || null
+        };
+
+        const result = await supabase
+          .from("products")
+          .insert(product)
+          .select("id")
+          .single();
+
+        if (result.error) {
+          throw new Error(
+            "Product could not be saved. Supabase says: " +
+            result.error.message
+          );
+        }
+
+        document.getElementById("productForm").reset();
+        document.getElementById("storeName").value =
+          "Edesvino Digital Hub";
+
+        showStatus("Product added successfully.");
+        await loadProducts();
+
+      } catch (error) {
+        showStatus(error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+  );
+
+  document.getElementById("refreshButton").addEventListener(
+    "click",
+    loadProducts
+  );
+
+  document.getElementById("logoutButton").addEventListener(
+    "click",
+    async function () {
+      if (busy) return;
+      setBusy(true);
+
+      try {
+        const result = await supabase.auth.signOut();
+
+        if (result.error) throw result.error;
+
+        currentUser = null;
+        showLogin();
+        showStatus("You have logged out.");
+      } catch (error) {
+        showStatus("Logout failed: " + error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+  );
+
+  async function start() {
+    try {
+      if (!window.supabase) {
+        throw new Error("Supabase library could not be loaded.");
+      }
+
+      supabase = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
+
+      const result = await supabase.auth.getSession();
+
+      if (result.error) throw result.error;
+
+      if (result.data.session) {
+        await checkOwner(result.data.session.user);
+        showStatus("Owner account verified.");
+        await loadProducts();
+      } else {
+        showLogin();
+        showStatus("Please log in with your marketplace owner account.");
+      }
+    } catch (error) {
+      showLogin();
+      showStatus(error.message);
+    }
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>
