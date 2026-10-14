@@ -2,65 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Seller Dashboard | Edesvino Marketplace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edesvino Seller Dashboard</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
-      margin: 0;
-      padding: 16px;
       font-family: Arial, sans-serif;
-      background: #f4f6f8;
+      background: #f4f7f5;
+      margin: 0;
+      padding: 18px;
       color: #222;
     }
 
     .container {
-      max-width: 850px;
+      max-width: 700px;
       margin: auto;
-    }
-
-    header {
-      background: #075e35;
-      color: white;
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-
-    header h1 {
-      margin: 0 0 8px;
-      font-size: 24px;
     }
 
     .card {
       background: white;
-      padding: 18px;
+      padding: 20px;
+      border-radius: 12px;
       margin-bottom: 18px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px #0000000d;
+      box-shadow: 0 2px 8px #00000012;
     }
 
-    h2 {
-      margin-top: 0;
-      font-size: 20px;
-    }
-
-    label {
-      display: block;
-      margin-top: 14px;
-      font-weight: bold;
-    }
+    h1, h2 { color: #147a43; }
 
     input, textarea, button {
       width: 100%;
       padding: 12px;
-      margin-top: 6px;
+      margin: 7px 0;
       border-radius: 6px;
       font-size: 16px;
     }
@@ -69,163 +45,121 @@
       border: 1px solid #ccc;
     }
 
-    textarea {
-      min-height: 90px;
-      resize: vertical;
-    }
-
     button {
-      border: none;
-      background: #087443;
+      border: 0;
+      background: #147a43;
       color: white;
       font-weight: bold;
       cursor: pointer;
     }
 
-    button:disabled {
-      opacity: 0.6;
-    }
-
     .secondary {
-      background: #444;
-    }
-
-    .danger {
-      background: #a52323;
+      background: #555;
     }
 
     .product {
       border: 1px solid #ddd;
-      padding: 14px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-    }
-
-    .product img {
-      width: 100%;
-      max-width: 180px;
-      max-height: 160px;
-      object-fit: contain;
-      display: block;
-      margin-bottom: 10px;
-    }
-
-    .product p {
-      overflow-wrap: anywhere;
-    }
-
-    .status {
       padding: 12px;
-      margin-bottom: 15px;
-      border-radius: 6px;
-      background: #e8f3ed;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+
+    #message {
+      white-space: pre-wrap;
       overflow-wrap: anywhere;
+      color: #b42318;
     }
 
-    .hidden {
-      display: none;
-    }
+    .success { color: #147a43 !important; }
 
-    .muted {
-      color: #666;
-      font-size: 14px;
-    }
-
-    a {
-      color: #075e35;
-    }
+    a { color: #147a43; }
   </style>
 </head>
 
 <body>
 <div class="container">
 
-  <header>
+  <div class="card">
     <h1>Edesvino Seller Dashboard</h1>
     <p>Manage your products on Edesvino Marketplace.</p>
-  </header>
-
-  <div id="status" class="status" role="status">
-    Connecting to Edesvino...
+    <p id="status">Connecting to Edesvino...</p>
+    <p id="message"></p>
   </div>
 
-  <section id="loginSection" class="card hidden">
+  <section class="card" id="loginSection">
     <h2>Owner Login</h2>
     <p>Sign in with your existing marketplace owner account.</p>
 
     <form id="loginForm">
-      <label for="email">Email Address</label>
-      <input id="email" type="email" autocomplete="username" required>
+      <input
+        id="email"
+        type="email"
+        placeholder="Email Address"
+        autocomplete="username"
+        required
+      >
 
-      <label for="password">Password</label>
-      <input id="password" type="password"
-             autocomplete="current-password" required>
+      <input
+        id="password"
+        type="password"
+        placeholder="Password"
+        autocomplete="current-password"
+        required
+      >
 
       <button type="submit">Log In</button>
     </form>
 
-    <p class="muted">
-      This page does not create a new account.
-    </p>
+    <p>This page does not create a new account.</p>
   </section>
 
-  <section id="dashboard" class="hidden">
+  <section class="card" id="dashboardSection" hidden>
+    <h2>Your Products</h2>
+    <p id="accountInfo"></p>
 
-    <div class="card">
-      <h2>Account</h2>
-      <p id="accountInfo"></p>
-      <button id="refreshButton" type="button">
-        Refresh Products
-      </button>
-      <button id="logoutButton" type="button" class="secondary">
-        Log Out
-      </button>
-    </div>
+    <button id="refreshButton" type="button">
+      Refresh Products
+    </button>
 
-    <div class="card">
-      <h2>Add a Product</h2>
+    <div id="productsList">Loading products...</div>
 
-      <form id="productForm">
-        <label for="productName">Product Name</label>
-        <input id="productName" maxlength="150" required>
+    <h2>Add a Product</h2>
 
-        <label for="productPrice">Price in Naira (₦)</label>
-        <input id="productPrice" type="number"
-               min="0.01" step="0.01" required>
+    <form id="productForm">
+      <input id="productName" placeholder="Product Name" required>
 
-        <label for="storeName">Store Name</label>
-        <input id="storeName" value="Edesvino Digital Hub"
-               maxlength="150" required>
+      <input
+        id="productPrice"
+        type="number"
+        min="0.01"
+        step="0.01"
+        placeholder="Price in Naira"
+        required
+      >
 
-        <label for="productDescription">Description</label>
-        <textarea id="productDescription"
-                  maxlength="5000" required></textarea>
+      <input id="storeName" placeholder="Store Name" required>
 
-        <label for="productImage">Product Image URL (optional)</label>
-        <input id="productImage" type="url"
-               placeholder="https://example.com/product.jpg">
+      <textarea
+        id="productDescription"
+        placeholder="Product Description"
+        rows="3"
+      ></textarea>
 
-        <button id="addButton" type="submit">
-          Add Product
-        </button>
-      </form>
+      <input
+        id="productImage"
+        type="url"
+        placeholder="Product Image URL (optional)"
+      >
 
-      <p class="muted">
-        Products are saved to your existing Supabase products table.
-        If database permissions prevent saving, the page will display
-        the error instead of changing your security settings.
-      </p>
-    </div>
+      <button type="submit">Add Product</button>
+    </form>
 
-    <div class="card">
-      <h2>My Products</h2>
-      <div id="productsList">Loading products...</div>
-    </div>
-
-    <p>
-      <a href="./">Back to Marketplace</a>
-    </p>
+    <button id="logoutButton" class="secondary" type="button">
+      Log Out
+    </button>
   </section>
+
+  <p><a href="./">Back to Marketplace</a></p>
 
 </div>
 
@@ -235,312 +169,226 @@
     "https://lxszilqypuglxyfyukdg.supabase.co";
 
   const SUPABASE_KEY =
-    "sb_publishable_s0nFQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
   const OWNER_ID =
     "b860b02d-0bf3-4b8d-87f8-965753f22f72";
 
-  const statusBox = document.getElementById("status");
+  const statusEl = document.getElementById("status");
+  const messageEl = document.getElementById("message");
   const loginSection = document.getElementById("loginSection");
-  const dashboard = document.getElementById("dashboard");
+  const dashboardSection = document.getElementById("dashboardSection");
   const productsList = document.getElementById("productsList");
 
-  let supabase;
+  let supabaseClient;
   let currentUser = null;
-  let busy = false;
 
-  function showStatus(message) {
-    statusBox.textContent = message;
-    statusBox.classList.remove("hidden");
+  function showMessage(message, success = false) {
+    messageEl.textContent = message;
+    messageEl.className = success ? "success" : "";
   }
 
-  function setBusy(value) {
-    busy = value;
-    document.querySelectorAll("button").forEach(function (button) {
-      button.disabled = value;
+  function naira(value) {
+    return "₦" + Number(value).toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     });
   }
 
-  function showLogin() {
-    loginSection.classList.remove("hidden");
-    dashboard.classList.add("hidden");
-  }
-
-  function showDashboard() {
-    loginSection.classList.add("hidden");
-    dashboard.classList.remove("hidden");
-  }
-
-  function addTextElement(parent, tag, text, className) {
-    const element = document.createElement(tag);
-    element.textContent = text;
-
-    if (className) {
-      element.className = className;
+  async function initialize() {
+    if (!window.supabase || !window.supabase.createClient) {
+      statusEl.textContent = "Connection failed.";
+      showMessage("The Supabase library could not load. Refresh the page and try again.");
+      return;
     }
 
-    parent.appendChild(element);
-    return element;
-  }
-
-  async function checkOwner(user) {
-    if (!user || user.id !== OWNER_ID) {
-      throw new Error(
-        "This account is not the configured marketplace owner account."
+    try {
+      supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
       );
+
+      statusEl.textContent = "Connected to Edesvino.";
+      showMessage("", true);
+
+      const { data, error } = await supabaseClient.auth.getSession();
+
+      if (error) throw error;
+
+      if (data.session) {
+        await verifyOwner(data.session.user);
+      } else {
+        loginSection.hidden = false;
+        dashboardSection.hidden = true;
+        statusEl.textContent = "Please log in with your marketplace owner account.";
+      }
+    } catch (error) {
+      statusEl.textContent = "Connection or session check failed.";
+      showMessage(error.message || "Unable to connect.");
+    }
+  }
+
+  async function verifyOwner(user) {
+    currentUser = user;
+
+    if (!user || user.id !== OWNER_ID) {
+      await supabaseClient.auth.signOut();
+      currentUser = null;
+      loginSection.hidden = false;
+      dashboardSection.hidden = true;
+      showMessage("This account is not the registered marketplace owner account.");
+      return;
     }
 
-    const result = await supabase
+    const { data, error } = await supabaseClient
       .from("platform_admins")
       .select("user_id")
       .eq("user_id", user.id)
-      .limit(1);
+      .maybeSingle();
 
-    if (result.error) {
-      throw new Error(
-        "Could not verify owner permissions: " + result.error.message
-      );
+    if (error) {
+      showMessage("Owner verification failed: " + error.message);
+      return;
     }
 
-    if (!result.data || result.data.length === 0) {
-      throw new Error(
-        "Your account was not found in the platform_admins table."
-      );
+    if (!data) {
+      showMessage("This account was not found in platform_admins.");
+      return;
     }
 
-    currentUser = user;
+    loginSection.hidden = true;
+    dashboardSection.hidden = false;
+    statusEl.textContent = "Owner verified.";
     document.getElementById("accountInfo").textContent =
-      "Verified marketplace owner. Account ID: " + user.id;
+      "Signed in as " + user.email;
 
-    showDashboard();
+    showMessage("Login successful.", true);
+    await loadProducts();
   }
+
+  document.getElementById("loginForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+    showMessage("Signing in...");
+
+    try {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      await verifyOwner(data.user);
+    } catch (error) {
+      showMessage("Login or verification failed: " + error.message);
+    }
+  });
 
   async function loadProducts() {
     if (!currentUser) return;
 
     productsList.textContent = "Loading products...";
 
-    const result = await supabase
+    const { data, error } = await supabaseClient
       .from("products")
-      .select("id, name, price, store, seller_id, image_url, description")
+      .select("id, name, price, store, description, image_url")
       .eq("seller_id", currentUser.id)
       .order("id", { ascending: false });
 
-    if (result.error) {
-      productsList.textContent =
-        "Unable to load products: " + result.error.message;
+    if (error) {
+      productsList.textContent = "";
+      showMessage("Could not load products: " + error.message);
       return;
     }
 
-    productsList.replaceChildren();
+    productsList.innerHTML = "";
 
-    if (!result.data || result.data.length === 0) {
-      addTextElement(
-        productsList,
-        "p",
-        "No products were found for this account."
-      );
+    if (!data || data.length === 0) {
+      productsList.textContent = "No products found for this owner account.";
       return;
     }
 
-    result.data.forEach(function (product) {
+    data.forEach(function (product) {
       const card = document.createElement("div");
       card.className = "product";
 
-      if (product.image_url) {
-        try {
-          const imageURL = new URL(product.image_url);
+      const title = document.createElement("h3");
+      title.textContent = product.name || "Unnamed product";
 
-          if (imageURL.protocol === "https:" ||
-              imageURL.protocol === "http:") {
-            const image = document.createElement("img");
-            image.src = imageURL.href;
-            image.alt = product.name || "Product";
-            image.loading = "lazy";
-            image.onerror = function () {
-              image.remove();
-            };
-            card.appendChild(image);
-          }
-        } catch (_) {}
-      }
+      const price = document.createElement("p");
+      price.textContent = "Price: " + naira(product.price);
 
-      addTextElement(card, "h3", product.name || "Unnamed product");
-      addTextElement(
-        card,
-        "p",
-        "Price: ₦" + Number(product.price || 0).toLocaleString("en-NG", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        })
-      );
+      const store = document.createElement("p");
+      store.textContent = "Store: " + (product.store || "Not specified");
 
-      addTextElement(card, "p", "Store: " + (product.store || "Not specified"));
-      addTextElement(card, "p", "Product ID: " + product.id);
-      addTextElement(
-        card,
-        "p",
-        product.description || "No description provided."
-      );
+      const description = document.createElement("p");
+      description.textContent = product.description || "";
 
+      card.append(title, price, store, description);
       productsList.appendChild(card);
     });
   }
 
-  document.getElementById("loginForm").addEventListener(
-    "submit",
-    async function (event) {
-      event.preventDefault();
+  document.getElementById("refreshButton").addEventListener("click", loadProducts);
 
-      if (busy) return;
-      setBusy(true);
+  document.getElementById("productForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
 
-      try {
-        const result = await supabase.auth.signInWithPassword({
-          email: document.getElementById("email").value.trim(),
-          password: document.getElementById("password").value
-        });
-
-        if (result.error) throw result.error;
-
-        await checkOwner(result.data.user);
-        showStatus("Owner account verified.");
-        await loadProducts();
-      } catch (error) {
-        showLogin();
-        showStatus("Login or verification failed: " + error.message);
-      } finally {
-        setBusy(false);
-      }
+    if (!currentUser || currentUser.id !== OWNER_ID) {
+      showMessage("Please sign in with the owner account first.");
+      return;
     }
-  );
 
-  document.getElementById("productForm").addEventListener(
-    "submit",
-    async function (event) {
-      event.preventDefault();
+    const name = document.getElementById("productName").value.trim();
+    const price = Number(document.getElementById("productPrice").value);
+    const store = document.getElementById("storeName").value.trim();
+    const description = document.getElementById("productDescription").value.trim();
+    const image_url = document.getElementById("productImage").value.trim();
 
-      if (busy || !currentUser) return;
-      setBusy(true);
-
-      try {
-        const name = document.getElementById("productName").value.trim();
-        const price = Number(document.getElementById("productPrice").value);
-        const store = document.getElementById("storeName").value.trim();
-        const description =
-          document.getElementById("productDescription").value.trim();
-        const imageURL =
-          document.getElementById("productImage").value.trim();
-
-        if (!name || !store || !description ||
-            !Number.isFinite(price) || price <= 0) {
-          throw new Error("Please enter valid product details.");
-        }
-
-        if (imageURL) {
-          const parsedURL = new URL(imageURL);
-          if (parsedURL.protocol !== "https:" &&
-              parsedURL.protocol !== "http:") {
-            throw new Error("Please enter a valid image URL.");
-          }
-        }
-
-        const product = {
-          name: name,
-          price: price,
-          store: store,
-          seller_id: currentUser.id,
-          description: description,
-          image_url: imageURL || null
-        };
-
-        const result = await supabase
-          .from("products")
-          .insert(product)
-          .select("id")
-          .single();
-
-        if (result.error) {
-          throw new Error(
-            "Product could not be saved. Supabase says: " +
-            result.error.message
-          );
-        }
-
-        document.getElementById("productForm").reset();
-        document.getElementById("storeName").value =
-          "Edesvino Digital Hub";
-
-        showStatus("Product added successfully.");
-        await loadProducts();
-
-      } catch (error) {
-        showStatus(error.message);
-      } finally {
-        setBusy(false);
-      }
+    if (!name || !store || !Number.isFinite(price) || price <= 0) {
+      showMessage("Enter a product name, store name, and valid price.");
+      return;
     }
-  );
 
-  document.getElementById("refreshButton").addEventListener(
-    "click",
-    loadProducts
-  );
+    showMessage("Adding product...");
 
-  document.getElementById("logoutButton").addEventListener(
-    "click",
-    async function () {
-      if (busy) return;
-      setBusy(true);
+    const newProduct = {
+      name,
+      price,
+      store,
+      seller_id: currentUser.id,
+      description,
+      image_url: image_url || null
+    };
 
-      try {
-        const result = await supabase.auth.signOut();
+    const { error } = await supabaseClient
+      .from("products")
+      .insert(newProduct);
 
-        if (result.error) throw result.error;
-
-        currentUser = null;
-        showLogin();
-        showStatus("You have logged out.");
-      } catch (error) {
-        showStatus("Logout failed: " + error.message);
-      } finally {
-        setBusy(false);
-      }
+    if (error) {
+      showMessage("Product was not added: " + error.message);
+      return;
     }
-  );
 
-  async function start() {
-    try {
-      if (!window.supabase) {
-        throw new Error("Supabase library could not be loaded.");
-      }
+    document.getElementById("productForm").reset();
+    showMessage("Product added successfully.", true);
+    await loadProducts();
+  });
 
-      supabase = window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY =
-  sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh
-     
-      );
+  document.getElementById("logoutButton").addEventListener("click", async function () {
+    const { error } = await supabaseClient.auth.signOut();
 
-      const result = await supabase.auth.getSession();
+    currentUser = null;
+    loginSection.hidden = false;
+    dashboardSection.hidden = true;
 
-      if (result.error) throw result.error;
+    showMessage(error ? error.message : "You have logged out.", !error);
+  });
 
-      if (result.data.session) {
-        await checkOwner(result.data.session.user);
-        showStatus("Owner account verified.");
-        await loadProducts();
-      } else {
-        showLogin();
-        showStatus("Please log in with your marketplace owner account.");
-      }
-    } catch (error) {
-      showLogin();
-      showStatus(error.message);
-    }
-  }
-
-  start();
+  initialize();
 })();
 </script>
 </body>
