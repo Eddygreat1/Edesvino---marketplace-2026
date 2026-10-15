@@ -22,6 +22,9 @@ button:disabled{opacity:.6}
 .notice{padding:12px;background:#eef5ff;border-radius:6px;overflow-wrap:anywhere}
 a{color:#087443}
 .hidden{display:none}
+.product-image{display:block;width:100%;max-width:320px;height:auto;max-height:260px;object-fit:contain;margin:10px 0;border-radius:8px;background:#f4f6f8}
+#imagePreview{max-width:100%;max-height:240px;object-fit:contain;margin:8px 0 12px;border-radius:8px}
+.help{font-size:14px;color:#555;line-height:1.5}
 </style>
 </head>
 
@@ -66,6 +69,7 @@ autocomplete="current-password" required>
 <h2>Add Product</h2>
 
 <form id="productForm">
+
 <label>Product Name</label>
 <input id="productName" required>
 
@@ -75,8 +79,38 @@ autocomplete="current-password" required>
 <label>Store Name</label>
 <input id="storeName" required>
 
+<label>Choose Image from Gallery</label>
+<input
+  id="imageFile"
+  type="file"
+  accept="image/*"
+>
+
+<p class="help">
+Select a product picture from your phone. Maximum image size: 5 MB.
+</p>
+
+<img
+  id="imagePreview"
+  class="hidden"
+  alt="Selected product image preview"
+>
+
+<button id="removeImageButton" type="button" class="hidden">
+Remove Selected Image
+</button>
+
 <label>Image URL (optional)</label>
-<input id="imageUrl" type="url">
+<input
+  id="imageUrl"
+  type="url"
+  placeholder="https://example.com/product.jpg"
+>
+
+<p class="help">
+You can upload an image from your Gallery or enter an image URL.
+If you select a Gallery image, it will be used instead of the URL.
+</p>
 
 <label>Description</label>
 <textarea id="description" rows="3"></textarea>
@@ -121,6 +155,9 @@ const SUPABASE_KEY =
 const OWNER_ID =
 "b860b02d-0bf3-4b8d-87f8-965753f22f72";
 
+const STORAGE_BUCKET = "products";
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
 const connection = document.getElementById("connection");
 const loginPanel = document.getElementById("loginPanel");
 const dashboard = document.getElementById("dashboard");
@@ -129,9 +166,15 @@ const productMessage = document.getElementById("productMessage");
 const productsBox = document.getElementById("products");
 const ordersBox = document.getElementById("orders");
 
+const imageFile = document.getElementById("imageFile");
+const imageUrl = document.getElementById("imageUrl");
+const imagePreview = document.getElementById("imagePreview");
+const removeImageButton = document.getElementById("removeImageButton");
+
 let supabase;
 let currentUser = null;
 let busy = false;
+let previewObjectUrl = null;
 
 function message(element,text){
   element.textContent = text;
@@ -166,6 +209,31 @@ function showDashboard(){
   dashboard.classList.remove("hidden");
 }
 
+function clearImagePreview(){
+  if(previewObjectUrl){
+    URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+  }
+
+  imagePreview.removeAttribute("src");
+  imagePreview.classList.add("hidden");
+  removeImageButton.classList.add("hidden");
+}
+
+function showImagePreview(url){
+  imagePreview.onerror = function(){
+    imagePreview.classList.add("hidden");
+    message(productMessage,"The image preview could not be displayed. Check the image file or URL.");
+  };
+
+  imagePreview.onload = function(){
+    imagePreview.classList.remove("hidden");
+    removeImageButton.classList.remove("hidden");
+  };
+
+  imagePreview.src = url;
+}
+
 async function verifyOwner(user){
   if(!user || user.id !== OWNER_ID){
     throw new Error(
@@ -190,6 +258,121 @@ async function verifyOwner(user){
   return true;
 }
 
+/* IMAGE PREVIEW */
+
+imageFile.addEventListener("change",function(){
+
+  clearImagePreview();
+
+  const file = imageFile.files && imageFile.files[0];
+
+  if(!file){
+    message(productMessage,"");
+    return;
+  }
+
+  if(!file.type.startsWith("image/")){
+    imageFile.value = "";
+    message(productMessage,"Please choose a valid image file.");
+    return;
+  }
+
+  if(file.size > MAX_IMAGE_SIZE){
+    imageFile.value = "";
+    message(productMessage,"Image is too large. Please select an image no bigger than 5 MB.");
+    return;
+  }
+
+  previewObjectUrl = URL.createObjectURL(file);
+  message(productMessage,"Image selected. Preview shown below.");
+  showImagePreview(previewObjectUrl);
+});
+
+/* PREVIEW IMAGE URL */
+
+imageUrl.addEventListener("input",function(){
+
+  if(imageFile.files && imageFile.files.length){
+    return;
+  }
+
+  clearImagePreview();
+
+  const url = imageUrl.value.trim();
+
+  if(!url) return;
+
+  try{
+    const parsed = new URL(url);
+
+    if(parsed.protocol === "https:" || parsed.protocol === "http:"){
+      showImagePreview(url);
+    }
+  }catch(error){
+    /* Wait until a complete URL is entered. */
+  }
+});
+
+/* REMOVE SELECTED IMAGE */
+
+removeImageButton.addEventListener("click",function(){
+  imageFile.value = "";
+  clearImagePreview();
+  message(productMessage,"Selected image removed. You can enter an image URL instead.");
+});
+
+/* UPLOAD IMAGE TO SUPABASE STORAGE */
+
+async function uploadProductImage(file){
+
+  if(!currentUser){
+    throw new Error("Please sign in before uploading an image.");
+  }
+
+  if(!file || !file.type.startsWith("image/")){
+    throw new Error("Please choose a valid image file.");
+  }
+
+  if(file.size > MAX_IMAGE_SIZE){
+    throw new Error("Image is too large. Maximum size is 5 MB.");
+  }
+
+  const originalName = file.name || "product-image";
+  const safeName = originalName
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g,"-");
+
+  const filePath =
+    currentUser.id + "/" + Date.now() + "-" + safeName;
+
+  message(productMessage,"Uploading image to Supabase...");
+
+  const {data,error} = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(filePath,file,{
+      cacheControl:"3600",
+      upsert:false,
+      contentType:file.type
+    });
+
+  if(error){
+    throw new Error(
+      "Image upload failed: " + error.message +
+      ". Check the products bucket and its upload permissions."
+    );
+  }
+
+  const {data:publicData} = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(data.path);
+
+  if(!publicData || !publicData.publicUrl){
+    throw new Error("The image uploaded, but its public URL could not be created.");
+  }
+
+  return publicData.publicUrl;
+}
+
 /* LOAD PRODUCTS */
 
 async function loadProducts(){
@@ -212,9 +395,25 @@ async function loadProducts(){
   }
 
   productsBox.innerHTML = data.map(function(p){
+
+    const imageMarkup = p.image_url
+      ? `
+        <img
+          class="product-image"
+          src="${escapeHTML(p.image_url)}"
+          alt="${escapeHTML(p.name)}"
+          loading="lazy"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='block';"
+        >
+        <p class="image-fallback" style="display:none">
+          Image could not be displayed. Check its URL or storage permissions.
+        </p>`
+      : `<p class="help">No product image added.</p>`;
+
     return `
       <div class="product">
         <strong>${escapeHTML(p.name)}</strong>
+        ${imageMarkup}
         <p>Price: ${naira(p.price)}</p>
         <p>Store: ${escapeHTML(p.store || "Not specified")}</p>
         <p>${escapeHTML(p.description || "")}</p>
@@ -230,12 +429,6 @@ async function loadOrders(){
 
   try{
 
-    /*
-      Step 1:
-      Retrieve this seller's order items.
-      Quantity and product price are stored in order_items.
-    */
-
     const {data:items,error:itemError} = await supabase
       .from("order_items")
       .select("id,order_id,product_name,price,quantity,seller_id,product_id")
@@ -249,11 +442,6 @@ async function loadOrders(){
         "No orders were found for this seller account.";
       return;
     }
-
-    /*
-      Step 2:
-      Collect the unique order IDs.
-    */
 
     const orderIds = [
       ...new Set(
@@ -269,12 +457,6 @@ async function loadOrders(){
       return;
     }
 
-    /*
-      Step 3:
-      Retrieve customer and delivery details from orders.
-      order_items.order_id references orders.id.
-    */
-
     const {data:orders,error:orderError} = await supabase
       .from("orders")
       .select("id,product_name,customer_name,customer_phone,delivery_address,status,total_amount")
@@ -286,12 +468,6 @@ async function loadOrders(){
     const orderMap = new Map(
       (orders || []).map(order => [String(order.id),order])
     );
-
-    /*
-      Step 4:
-      Group items so an order containing several products
-      appears as one order rather than several separate orders.
-    */
 
     const grouped = new Map();
 
@@ -451,11 +627,6 @@ async function updateOrderStatus(orderId){
 
   try{
 
-    /*
-      Verify that the current seller has an item
-      belonging to this order.
-    */
-
     const {data:ownedItems,error:ownershipError} = await supabase
       .from("order_items")
       .select("id")
@@ -470,11 +641,6 @@ async function updateOrderStatus(orderId){
         "This order is not assigned to your seller account."
       );
     }
-
-    /*
-      Update orders using its real columns.
-      orders does not need a seller_id column for this query.
-    */
 
     const {data,error} = await supabase
       .from("orders")
@@ -565,8 +731,6 @@ document.getElementById("productForm")
     const button = document.getElementById("addButton");
     button.disabled = true;
 
-    message(productMessage,"Adding product...");
-
     try{
 
       const name =
@@ -578,17 +742,48 @@ document.getElementById("productForm")
       const store =
         document.getElementById("storeName").value.trim();
 
-      const image_url =
+      let finalImageUrl =
         document.getElementById("imageUrl").value.trim();
 
       const description =
         document.getElementById("description").value.trim();
+
+      const selectedFile =
+        imageFile.files && imageFile.files[0];
 
       if(!name || !store || !Number.isFinite(price) || price <= 0){
         throw new Error(
           "Enter a product name, valid price, and store name."
         );
       }
+
+      if(selectedFile){
+
+        if(!selectedFile.type.startsWith("image/")){
+          throw new Error("Please choose a valid image file.");
+        }
+
+        if(selectedFile.size > MAX_IMAGE_SIZE){
+          throw new Error("Image is too large. Maximum size is 5 MB.");
+        }
+
+        finalImageUrl = await uploadProductImage(selectedFile);
+
+      }else if(finalImageUrl){
+
+        try{
+          const parsed = new URL(finalImageUrl);
+
+          if(parsed.protocol !== "https:" && parsed.protocol !== "http:"){
+            throw new Error("invalid protocol");
+          }
+
+        }catch(error){
+          throw new Error("Enter a valid image URL or choose an image from your Gallery.");
+        }
+      }
+
+      message(productMessage,"Saving product...");
 
       const {error} = await supabase
         .from("products")
@@ -597,15 +792,16 @@ document.getElementById("productForm")
           price,
           store,
           seller_id:currentUser.id,
-          image_url:image_url || null,
+          image_url:finalImageUrl || null,
           description:description || null
         }]);
 
       if(error) throw error;
 
-      message(productMessage,"Product added successfully.");
-
       document.getElementById("productForm").reset();
+      clearImagePreview();
+
+      message(productMessage,"Product added successfully.");
 
       await loadProducts();
 
@@ -629,32 +825,29 @@ document.getElementById("refreshButton")
 
     const button = this;
 
-    if (button.disabled) return;
+    if(button.disabled) return;
 
     button.disabled = true;
     button.textContent = "Refreshing...";
 
-    message(connection, "Refreshing dashboard...");
+    message(connection,"Refreshing dashboard...");
 
-    try {
+    try{
 
       await Promise.all([
         loadProducts(),
         loadOrders()
       ]);
 
-      message(connection, "Dashboard refresh completed.");
+      message(connection,"Dashboard refresh completed.");
 
-    } catch (error) {
+    }catch(error){
 
-      console.error("Dashboard refresh failed:", error);
+      console.error("Dashboard refresh failed:",error);
 
-      message(
-        connection,
-        "Refresh failed: " + error.message
-      );
+      message(connection,"Refresh failed: " + error.message);
 
-    } finally {
+    }finally{
 
       button.disabled = false;
       button.textContent = "Refresh Dashboard";
@@ -662,8 +855,6 @@ document.getElementById("refreshButton")
     }
 
 });
-
-
 
 /* LOG OUT */
 
