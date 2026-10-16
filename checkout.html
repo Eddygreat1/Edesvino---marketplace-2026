@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,7 +56,8 @@
     <input id="phone" name="phone" type="tel" autocomplete="tel" required>
 
     <label for="address">Delivery Address</label>
-    <textarea id="address" name="address" autocomplete="street-address" required></textarea>
+    <textarea id="address" name="address"
+      autocomplete="street-address" required></textarea>
 
     <label for="city">City or Town</label>
     <input id="city" name="city" autocomplete="address-level2" required>
@@ -65,24 +65,38 @@
     <label for="notes">Additional Delivery Instructions (Optional)</label>
     <textarea id="notes" name="notes"></textarea>
 
-    <button id="continueButton" type="submit">Place Order</button>
+    <button id="continueButton" type="submit">
+      Continue to Paystack
+    </button>
   </form>
 
   <p id="notice" class="notice" aria-live="polite"></p>
   <a class="link" href="./cart.html">Back to Shopping Cart</a>
   <a class="link" href="./">Continue Shopping</a>
-  <p class="muted">Payment is not taken at this stage.</p>
+  <p class="muted">
+    Payments are confirmed by the secure payment verification function.
+  </p>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (() => {
-  const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+  "use strict";
+
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
+  const SUPABASE_KEY =
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
   const CART_KEY = "edesvinoMarketplaceCart";
   const DETAILS_KEY = "edesvinoMarketplaceCheckout";
+  const PENDING_KEY = "edesvinoPendingPayment";
 
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const db = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
   const form = document.getElementById("checkoutForm");
   const button = document.getElementById("continueButton");
   const notice = document.getElementById("notice");
@@ -94,7 +108,9 @@
 
   function money(value) {
     return Number(value).toLocaleString("en-NG", {
-      style: "currency", currency: "NGN", maximumFractionDigits: 2
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 2
     });
   }
 
@@ -103,13 +119,24 @@
     notice.style.color = color;
   }
 
+  function setBusy(text) {
+    button.disabled = true;
+    button.textContent = text;
+  }
+
   function loadCart() {
     try {
-      const saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-      if (!Array.isArray(saved)) throw new Error("Invalid cart");
+      const saved = JSON.parse(
+        localStorage.getItem(CART_KEY) || "[]"
+      );
+
+      if (!Array.isArray(saved)) {
+        throw new Error("Invalid cart");
+      }
 
       cart = saved.filter(item =>
-        item && Number.isInteger(Number(item.id)) &&
+        item &&
+        Number.isInteger(Number(item.id)) &&
         Number(item.id) > 0 &&
         typeof item.name === "string" &&
         Number.isFinite(Number(item.price)) &&
@@ -132,7 +159,9 @@
         return;
       }
 
+      form.hidden = false;
       let total = 0;
+
       cart.forEach(item => {
         const subtotal = item.price * item.quantity;
         total += subtotal;
@@ -146,7 +175,8 @@
         const details = document.createElement("div");
         details.className = "muted";
         details.textContent =
-          "Quantity: " + item.quantity + " × " + money(item.price);
+          "Quantity: " + item.quantity +
+          " × " + money(item.price);
 
         const amount = document.createElement("div");
         amount.textContent = "Subtotal: " + money(subtotal);
@@ -156,33 +186,155 @@
       });
 
       totalBox.textContent = "Total: " + money(total);
-    } catch (error) {
+
+    } catch (_) {
       cart = [];
-      itemsBox.textContent = "Could not read your cart. Return to your cart page.";
+      itemsBox.textContent =
+        "Could not read your cart. Return to your cart page.";
       totalBox.textContent = "";
       form.hidden = true;
     }
   }
 
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(DETAILS_KEY) || "null");
-    if (saved) {
-      ["fullName", "phone", "address", "city", "notes"].forEach(key => {
-        document.getElementById(key).value = saved[key] || "";
-      });
+  function restoreDetails() {
+    try {
+      const saved = JSON.parse(
+        sessionStorage.getItem(DETAILS_KEY) || "null"
+      );
+
+      if (saved) {
+        ["fullName", "phone", "address", "city", "notes"]
+          .forEach(key => {
+            document.getElementById(key).value =
+              saved[key] || "";
+          });
+      }
+    } catch (_) {
+      // Continue if saved details cannot be read.
     }
-  } catch (_) {
-    // Keep the checkout usable if saved browser details cannot be read.
   }
 
-  form.addEventListener("submit", async event => {
+  async function verifyReturnedPayment() {
+    const params = new URLSearchParams(location.search);
+    const reference =
+      params.get("reference") || params.get("trxref");
+
+    if (!reference) return false;
+
+    let pending;
+
+    try {
+      pending = JSON.parse(
+        localStorage.getItem(PENDING_KEY) || "null"
+      );
+    } catch (_) {
+      pending = null;
+    }
+
+    if (
+      !pending ||
+      !Number.isSafeInteger(Number(pending.order_id)) ||
+      Number(pending.order_id) <= 0 ||
+      !pending.reference ||
+      pending.reference !== reference
+    ) {
+      message(
+        "We could not match this payment to a saved order. " +
+        "Please contact the marketplace administrator."
+      );
+      return true;
+    }
+
+    setBusy("Verifying Payment...");
+    form.hidden = true;
+    message(
+      "Checking your payment directly with Paystack...",
+      "#374151"
+    );
+
+    try {
+      const { data: sessionData, error: sessionError } =
+        await db.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      if (!sessionData.session) {
+        message(
+          "Please log in to the same customer account used " +
+          "for checkout, then return to this page to verify payment."
+        );
+        return true;
+      }
+
+      const { data, error } = await db.functions.invoke(
+        "paystack-payment",
+        {
+          body: {
+            action: "verify",
+            order_id: Number(pending.order_id),
+            reference: reference
+          }
+        }
+      );
+
+      if (error) throw error;
+
+      if (!data || data.success !== true) {
+        throw new Error(
+          data && data.message
+            ? data.message
+            : "Payment could not be verified."
+        );
+      }
+
+      localStorage.removeItem(PENDING_KEY);
+      localStorage.removeItem(CART_KEY);
+
+      try {
+        sessionStorage.removeItem(DETAILS_KEY);
+      } catch (_) {}
+
+      history.replaceState(
+        {},
+        document.title,
+        location.pathname
+      );
+
+      loadCart();
+
+      message(
+        "Payment successful! Order #" +
+        Number(pending.order_id) +
+        " has been verified. Thank you for shopping with Edesvino.",
+        "#047857"
+      );
+
+      return true;
+
+    } catch (error) {
+      message(
+        "Payment verification is not yet confirmed. " +
+        "Do not pay again. Keep your order reference and " +
+        "contact the marketplace administrator. " +
+        (error.message || "")
+      );
+
+      button.disabled = true;
+      button.textContent = "Payment Needs Checking";
+      return true;
+    }
+  }
+
+  async function startCheckout(event) {
     event.preventDefault();
+
     if (submitting) return;
 
     if (!cart.length) {
       message("Your cart is empty. Add products before checkout.");
       return;
     }
+
     if (!form.reportValidity()) return;
 
     const details = {
@@ -193,28 +345,44 @@
       notes: document.getElementById("notes").value.trim()
     };
 
-    if (!details.fullName || !details.phone ||
-        !details.address || !details.city) {
+    if (
+      !details.fullName ||
+      !details.phone ||
+      !details.address ||
+      !details.city
+    ) {
       message("Please complete all required delivery fields.");
       return;
     }
 
     submitting = true;
-    button.disabled = true;
-    button.textContent = "Saving Order...";
+    setBusy("Saving Order...");
     message("Checking your account and products...", "#374151");
 
+    let orderCreated = false;
+
     try {
-      const { data: userData, error: userError } = await db.auth.getUser();
+      const { data: userData, error: userError } =
+        await db.auth.getUser();
+
       if (userError) throw userError;
+
       const user = userData.user;
 
       if (!user) {
-        throw new Error("Please log in to your customer account before placing an order.");
+        throw new Error(
+          "Please log in to your customer account before checkout."
+        );
       }
 
-      // Fetch authoritative product prices and seller IDs.
+      if (!user.email) {
+        throw new Error(
+          "Your customer account needs an email address for Paystack."
+        );
+      }
+
       const ids = [...new Set(cart.map(item => item.id))];
+
       const { data: products, error: productError } = await db
         .from("products")
         .select("id,name,price,seller_id")
@@ -222,30 +390,44 @@
 
       if (productError) throw productError;
 
-      const productMap = new Map((products || []).map(p => [Number(p.id), p]));
+      const productMap = new Map(
+        (products || []).map(p => [Number(p.id), p])
+      );
 
       for (const item of cart) {
         const product = productMap.get(item.id);
+
         if (!product || !product.seller_id) {
-          throw new Error("A cart product is missing from the marketplace or has no seller. Please review your cart.");
+          throw new Error(
+            "A product is missing or has no seller. " +
+            "Please review your cart."
+          );
         }
+
         if (Number(product.price) !== item.price) {
-          throw new Error("The price of " + product.name +
-            " has changed. Return to your cart and review the current price.");
+          throw new Error(
+            "The price of " + product.name +
+            " has changed. Return to your cart and review it."
+          );
         }
       }
 
       const total = cart.reduce((sum, item) =>
         sum + item.price * item.quantity, 0);
 
+      if (!Number.isFinite(total) || total <= 0) {
+        throw new Error("The order total is invalid.");
+      }
+
       const firstItem = cart[0];
       const firstProduct = productMap.get(firstItem.id);
-      const deliveryAddress = details.address + ", " + details.city +
-        (details.notes ? " | Instructions: " + details.notes : "");
 
-      // The existing orders table requires product details.
-      // The first product identifies the parent order; all products
-      // are recorded separately in order_items.
+      const deliveryAddress =
+        details.address + ", " + details.city +
+        (details.notes
+          ? " | Instructions: " + details.notes
+          : "");
+
       const orderRecord = {
         product_name: firstProduct.name,
         product_id: firstProduct.id,
@@ -267,8 +449,11 @@
 
       if (orderError) throw orderError;
 
+      orderCreated = true;
+
       const itemRecords = cart.map(item => {
         const product = productMap.get(item.id);
+
         return {
           order_id: order.id,
           product_id: product.id,
@@ -284,36 +469,100 @@
         .insert(itemRecords);
 
       if (itemsError) {
-        message(
-          "Order #" + order.id + " was created, but its items could not be saved. Do not place the order again. Please contact the marketplace administrator. Details: " + itemsError.message
+        throw new Error(
+          "Order #" + order.id +
+          " was created, but its items could not be saved. " +
+          "Do not submit another order. Contact the administrator."
         );
-        return;
       }
 
       try {
-        sessionStorage.setItem(DETAILS_KEY, JSON.stringify(details));
+        sessionStorage.setItem(
+          DETAILS_KEY,
+          JSON.stringify(details)
+        );
       } catch (_) {}
 
+      setBusy("Connecting to Paystack...");
       message(
-        "Order #" + order.id +
-        " was saved successfully. Payment has not been taken. Keep your cart until the order is reviewed.",
+        "Your order is saved. Preparing secure test payment...",
+        "#374151"
+      );
+
+      const { data: payment, error: paymentError } =
+        await db.functions.invoke("paystack-payment", {
+          body: {
+            action: "initialize",
+            order_id: Number(order.id)
+          }
+        });
+
+      if (paymentError) throw paymentError;
+
+      if (
+        !payment ||
+        !payment.authorization_url ||
+        !payment.reference ||
+        Number(payment.order_id) !== Number(order.id)
+      ) {
+        throw new Error(
+          "Paystack did not return a valid payment link."
+        );
+      }
+
+      localStorage.setItem(
+        PENDING_KEY,
+        JSON.stringify({
+          order_id: Number(order.id),
+          reference: payment.reference
+        })
+      );
+
+      message(
+        "Opening Paystack's secure payment page...",
         "#047857"
       );
 
-      button.textContent = "Order Saved";
-      // Intentionally preserve the cart until order review/payment is implemented.
+      location.assign(payment.authorization_url);
+
     } catch (error) {
-      message("Order was not confirmed: " + (error.message || "Unknown error"));
+      if (orderCreated) {
+        message(
+          "An order was created, but payment setup did not finish. " +
+          "Do not submit another order until this one is checked. " +
+          (error.message || "Please contact the administrator.")
+        );
+      } else {
+        message(
+          "Checkout could not continue: " +
+          (error.message || "Unknown error")
+        );
+      }
+
+      button.disabled = false;
+      button.textContent = "Continue to Paystack";
+
     } finally {
       submitting = false;
-      if (button.textContent !== "Order Saved") {
-        button.disabled = false;
-        button.textContent = "Place Order";
-      }
     }
-  });
+  }
 
+  form.addEventListener("submit", startCheckout);
+
+  restoreDetails();
   loadCart();
+
+  verifyReturnedPayment().then(returned => {
+    if (!returned && cart.length) {
+      button.disabled = false;
+      button.textContent = "Continue to Paystack";
+    }
+  }).catch(() => {
+    message(
+      "Could not check the payment return. " +
+      "Please contact the marketplace administrator."
+    );
+  });
 })();
 </script>
 </body>
