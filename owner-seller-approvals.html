@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Edesvino - Seller Applications</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 { font-size: 25px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      margin: 16px 0;
+      box-shadow: 0 2px 8px #00000012;
+    }
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 11px 15px;
+      margin: 5px 5px 5px 0;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .primary { background: #111827; color: white; }
+    .approve { background: #15803d; color: white; }
+    .reject { background: #b91c1c; color: white; }
+    .muted { color: #6b7280; }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 7px 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    .status { font-weight: bold; }
+    .pending { color: #b45309; }
+    .approved { color: #15803d; }
+    .rejected { color: #b91c1c; }
+
+    #message {
+      padding: 12px;
+      border-radius: 7px;
+      overflow-wrap: anywhere;
+    }
+
+    a { color: #1d4ed8; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Edesvino Seller Applications</h1>
+  <p>Review applications to become a seller on Edesvino Marketplace.</p>
+
+  <div class="card" id="loginCard">
+    <h2>Owner Login</h2>
+    <p class="muted">Sign in using your existing marketplace owner account.</p>
+
+    <label for="email">Owner email</label>
+    <input id="email" type="email" autocomplete="username"
+      placeholder="Enter your owner email">
+
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password"
+      placeholder="Enter your password">
+
+    <button class="primary" id="loginButton">Sign In</button>
+  </div>
+
+  <div class="card" id="applicationsCard" hidden>
+    <button class="primary" id="refreshButton">Refresh Applications</button>
+    <button id="logoutButton">Log Out</button>
+    <div id="applications"></div>
+  </div>
+
+  <div id="message" role="status" aria-live="polite"></div>
+
+  <p><a href="index.html">Back to Marketplace</a></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  "use strict";
+
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
+
+  const SUPABASE_KEY =
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  const OWNER_ID =
+    "b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  const loginCard = document.getElementById("loginCard");
+  const applicationsCard = document.getElementById("applicationsCard");
+  const message = document.getElementById("message");
+  const applications = document.getElementById("applications");
+
+  function showMessage(text, isError) {
+    message.textContent = text;
+    message.style.background = isError ? "#fee2e2" : "#dcfce7";
+    message.style.color = isError ? "#991b1b" : "#166534";
+  }
+
+  async function checkOwner() {
+    const { data: sessionData } = await client.auth.getSession();
+    const user = sessionData.session && sessionData.session.user;
+
+    if (!user) {
+      loginCard.hidden = false;
+      applicationsCard.hidden = true;
+      return false;
+    }
+
+    if (user.id !== OWNER_ID) {
+      await client.auth.signOut();
+      loginCard.hidden = false;
+      applicationsCard.hidden = true;
+      showMessage("Access denied. Sign in with the marketplace owner account.", true);
+      return false;
+    }
+
+    loginCard.hidden = true;
+    applicationsCard.hidden = false;
+    return true;
+  }
+
+  async function loadApplications() {
+    if (!await checkOwner()) return;
+
+    applications.textContent = "Loading applications...";
+
+    const { data, error } = await client
+      .from("seller_applications")
+      .select("id, full_name, phone, store_name, status, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      applications.textContent = "";
+      showMessage("Could not load applications: " + error.message, true);
+      return;
+    }
+
+    applications.textContent = "";
+
+    if (!data || data.length === 0) {
+      applications.textContent = "No seller applications found.";
+      showMessage("Applications refreshed.", false);
+      return;
+    }
+
+    data.forEach(function (app) {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const name = document.createElement("h3");
+      name.textContent = app.full_name || "Name not provided";
+      card.appendChild(name);
+
+      const store = document.createElement("p");
+      store.textContent = "Store: " + (app.store_name || "Not provided");
+      card.appendChild(store);
+
+      const phone = document.createElement("p");
+      phone.textContent = "Phone: " + (app.phone || "Not provided");
+      card.appendChild(phone);
+
+      const status = document.createElement("p");
+      status.className = "status " + (app.status || "");
+      status.textContent = "Status: " + (app.status || "unknown").toUpperCase();
+      card.appendChild(status);
+
+      const date = document.createElement("p");
+      date.className = "muted";
+      date.textContent = "Applied: " +
+        (app.created_at ? new Date(app.created_at).toLocaleString() : "Unknown");
+      card.appendChild(date);
+
+      if (app.status === "pending") {
+        const approve = document.createElement("button");
+        approve.className = "approve";
+        approve.textContent = "Approve Seller";
+        approve.addEventListener("click", function () {
+          updateStatus(app.id, "approved");
+        });
+        card.appendChild(approve);
+
+        const reject = document.createElement("button");
+        reject.className = "reject";
+        reject.textContent = "Reject Application";
+        reject.addEventListener("click", function () {
+          updateStatus(app.id, "rejected");
+        });
+        card.appendChild(reject);
+      }
+
+      applications.appendChild(card);
+    });
+
+    showMessage("Applications loaded.", false);
+  }
+
+  async function updateStatus(id, newStatus) {
+    const action = newStatus === "approved" ? "approve" : "reject";
+
+    if (!confirm("Are you sure you want to " + action + " this seller?")) {
+      return;
+    }
+
+    showMessage("Updating application...", false);
+
+    const { data, error } = await client.rpc(
+      "owner_update_seller_application",
+      {
+        application_id: id,
+        new_status: newStatus
+      }
+    );
+
+    if (error) {
+      showMessage("Update failed: " + error.message, true);
+      return;
+    }
+
+    if (data !== true) {
+      showMessage(
+        "The application was not changed. Refresh and check its current status.",
+        true
+      );
+      return;
+    }
+
+    showMessage("Application " + newStatus + " successfully.", false);
+    await loadApplications();
+  }
+
+  document.getElementById("loginButton").addEventListener("click", async function () {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      showMessage("Enter your owner email and password.", true);
+      return;
+    }
+
+    showMessage("Signing in...", false);
+
+    const { error } = await client.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      showMessage("Login failed: " + error.message, true);
+      return;
+    }
+
+    if (await checkOwner()) {
+      await loadApplications();
+    }
+  });
+
+  document.getElementById("refreshButton")
+    .addEventListener("click", loadApplications);
+
+  document.getElementById("logoutButton").addEventListener("click", async function () {
+    await client.auth.signOut();
+    applications.textContent = "";
+    loginCard.hidden = false;
+    applicationsCard.hidden = true;
+    showMessage("You have logged out.", false);
+  });
+
+  checkOwner().then(function (isOwner) {
+    if (isOwner) loadApplications();
+  });
+})();
+</script>
+</body>
+</html>
