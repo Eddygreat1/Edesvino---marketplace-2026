@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Edesvino Seller Portal</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 18px;
+      margin: 16px 0;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px #00000010;
+    }
+
+    h1 { font-size: 26px; }
+    h2 { font-size: 21px; }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    input, textarea, select {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    textarea {
+      min-height: 85px;
+      resize: vertical;
+    }
+
+    button {
+      padding: 12px 16px;
+      margin: 10px 5px 0 0;
+      border: 0;
+      border-radius: 7px;
+      background: #111827;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .danger { background: #b91c1c; }
+    .success { color: #15803d; }
+    .warning { color: #b45309; }
+    .muted { color: #6b7280; }
+
+    .item {
+      border: 1px solid #e5e7eb;
+      padding: 14px;
+      border-radius: 8px;
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .item img {
+      width: 100%;
+      max-width: 220px;
+      height: auto;
+      border-radius: 8px;
+    }
+
+    #message {
+      padding: 12px;
+      border-radius: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    [hidden] { display: none !important; }
+
+    a { color: #1d4ed8; }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>Edesvino Seller Portal</h1>
+  <p>Manage your store products and customer orders.</p>
+
+  <div class="card" id="loginCard">
+    <h2>Seller Login</h2>
+
+    <p class="muted">
+      Sign in with the email and password you used for Edesvino.
+      Only approved sellers can access this portal.
+    </p>
+
+    <label for="email">Email Address</label>
+    <input id="email" type="email" autocomplete="username"
+      placeholder="Enter your email">
+
+    <label for="password">Password</label>
+    <input id="password" type="password"
+      autocomplete="current-password" placeholder="Enter your password">
+
+    <button id="loginButton">Sign In</button>
+
+    <p>
+      Not registered as a seller?
+      <a href="seller-register.html">Apply to become a seller</a>
+    </p>
+  </div>
+
+  <div id="portal" hidden>
+    <div class="card">
+      <h2>My Store</h2>
+      <p id="sellerInfo"></p>
+      <button id="refreshButton">Refresh Portal</button>
+      <button id="logoutButton" class="danger">Log Out</button>
+    </div>
+
+    <div class="card">
+      <h2>Add Product</h2>
+
+      <form id="productForm">
+        <label for="productName">Product Name</label>
+        <input id="productName" required maxlength="150">
+
+        <label for="price">Price (₦)</label>
+        <input id="price" type="number" required min="1" step="0.01">
+
+        <label for="storeName">Store Name</label>
+        <input id="storeName" required maxlength="150">
+
+        <label for="description">Description</label>
+        <textarea id="description" maxlength="3000"></textarea>
+
+        <label for="imageFile">Product Image (optional)</label>
+        <input id="imageFile" type="file"
+          accept="image/png,image/jpeg,image/webp">
+
+        <p class="muted">Maximum image size: 5 MB.</p>
+
+        <button id="addProductButton" type="submit">
+          Add Product
+        </button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>My Products</h2>
+      <div id="products">Loading products...</div>
+    </div>
+
+    <div class="card">
+      <h2>My Customer Orders</h2>
+      <p class="muted">
+        Only orders assigned to this seller should appear here.
+      </p>
+      <div id="orders">Loading orders...</div>
+    </div>
+  </div>
+
+  <div id="message" role="status" aria-live="polite"></div>
+
+  <p><a href="index.html">Back to Marketplace</a></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
+
+  const SUPABASE_KEY =
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  const $ = id => document.getElementById(id);
+
+  let currentUser = null;
+  let currentApplication = null;
+  let busy = false;
+
+  function message(text, error) {
+    $("message").textContent = text;
+    $("message").style.background =
+      error ? "#fee2e2" : "#dcfce7";
+    $("message").style.color =
+      error ? "#991b1b" : "#166534";
+  }
+
+  function element(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function showLogin() {
+    $("loginCard").hidden = false;
+    $("portal").hidden = true;
+    currentUser = null;
+    currentApplication = null;
+  }
+
+  async function checkApproval() {
+    const { data: sessionData, error: sessionError } =
+      await client.auth.getSession();
+
+    if (sessionError) {
+      showLogin();
+      message("Could not check your login: " + sessionError.message, true);
+      return false;
+    }
+
+    const user = sessionData.session &&
+      sessionData.session.user;
+
+    if (!user) {
+      showLogin();
+      return false;
+    }
+
+    currentUser = user;
+
+    const { data, error } = await client
+      .from("seller_applications")
+      .select("id, user_id, full_name, store_name, status")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      showLogin();
+      message(
+        "We could not verify your seller approval. " +
+        "Please check the seller_applications access policies. " +
+        error.message,
+        true
+      );
+      return false;
+    }
+
+    if (!data || data.length === 0) {
+      showLogin();
+      message(
+        "No seller application is linked to this login. " +
+        "Please use the account used to apply.",
+        true
+      );
+      return false;
+    }
+
+    const application = data[0];
+
+    if (application.user_id !== user.id) {
+      showLogin();
+      message("The seller account could not be verified.", true);
+      return false;
+    }
+
+    if (application.status !== "approved") {
+      showLogin();
+      message(
+        "Your seller application is " +
+        String(application.status).toUpperCase() +
+        ". Portal access requires approval.",
+        true
+      );
+      return false;
+    }
+
+    currentApplication = application;
+    $("loginCard").hidden = true;
+    $("portal").hidden = false;
+    $("sellerInfo").textContent =
+      "Signed in as " + (application.full_name || user.email) +
+      " | Store: " + (application.store_name || "Not provided");
+
+    return true;
+  }
+
+  async function loadProducts() {
+    $("products").textContent = "Loading products...";
+
+    const { data, error } = await client
+      .from("products")
+      .select("id, name, price, store, image_url, description")
+      .eq("seller_id", currentUser.id)
+      .order("id", { ascending: false });
+
+    if (error) {
+      $("products").textContent = "";
+      $("products").appendChild(element(
+        "p",
+        "Products could not be loaded: " + error.message
+      ));
+      return;
+    }
+
+    $("products").textContent = "";
+
+    if (!data || data.length === 0) {
+      $("products").textContent = "No products found for your store.";
+      return;
+    }
+
+    data.forEach(product => {
+      const card = element("div", undefined, "item");
+
+      card.appendChild(element("h3", product.name));
+      card.appendChild(element(
+        "p",
+        "Price: ₦" + Number(product.price).toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })
+      ));
+      card.appendChild(element("p", "Store: " + (product.store || "")));
+      card.appendChild(element(
+        "p",
+        product.description || "No description"
+      ));
+
+      if (product.image_url) {
+        const img = element("img");
+        img.src = product.image_url;
+        img.alt = product.name;
+        img.loading = "lazy";
+        img.onerror = function () {
+          img.hidden = true;
+        };
+        card.appendChild(img);
+      }
+
+      $("products").appendChild(card);
+    });
+  }
+
+  async function loadOrders() {
+    $("orders").textContent = "Loading orders...";
+
+    /*
+      This query is intentionally limited to orders assigned
+      to the signed-in seller. Supabase RLS must also enforce
+      this restriction on the server.
+    */
+    const { data, error } = await client
+      .from("orders")
+      .select(
+        "id, total_amount, customer_name, customer_phone, " +
+        "delivery_address, status, seller_id"
+      )
+      .eq("seller_id", currentUser.id)
+      .order("id", { ascending: false });
+
+    if (error) {
+      $("orders").textContent = "";
+      $("orders").appendChild(element(
+        "p",
+        "Orders could not be loaded: " + error.message
+      ));
+      return;
+    }
+
+    $("orders").textContent = "";
+
+    if (!data || data.length === 0) {
+      $("orders").textContent = "No orders assigned to your account.";
+      return;
+    }
+
+    data.forEach(order => {
+      const card = element("div", undefined, "item");
+
+      card.appendChild(element("h3", "Order #" + order.id));
+      card.appendChild(element(
+        "p",
+        "Total: ₦" + Number(order.total_amount || 0).toLocaleString("en-NG")
+      ));
+      card.appendChild(element(
+        "p", "Customer: " + (order.customer_name || "Not provided")
+      ));
+      card.appendChild(element(
+        "p", "Phone: " + (order.customer_phone || "Not provided")
+      ));
+      card.appendChild(element(
+        "p", "Delivery address: " + (order.delivery_address || "Not provided")
+      ));
+      card.appendChild(element(
+        "p", "Current status: " + (order.status || "pending")
+      ));
+
+      const select = element("select");
+      ["pending", "confirmed", "delivered"].forEach(status => {
+        const option = element("option", status);
+        option.value = status;
+        option.selected =
+          String(order.status || "pending").toLowerCase() === status;
+        select.appendChild(option);
+      });
+
+      card.appendChild(select);
+
+      const save = element("button", "Save Status");
+      save.addEventListener("click", async function () {
+        if (!confirm("Update the status of order #" + order.id + "?")) {
+          return;
+        }
+
+        /*
+          The database must enforce seller ownership on updates.
+          The seller_id filter is an additional check, not a
+          replacement for Supabase RLS.
+        */
+        const { data: updated, error: updateError } = await client
+          .from("orders")
+          .update({ status: select.value })
+          .eq("id", order.id)
+          .eq("seller_id", currentUser.id)
+          .select("id");
+
+        if (updateError) {
+          message("Could not update order: " + updateError.message, true);
+          return;
+        }
+
+        if (!updated || updated.length === 0) {
+          message(
+            "No order was updated. Check the order ownership and database policies.",
+            true
+          );
+          return;
+        }
+
+        message("Order status updated.", false);
+        await loadOrders();
+      });
+
+      card.appendChild(save);
+      $("orders").appendChild(card);
+    });
+  }
+
+  async function refreshPortal() {
+    if (!await checkApproval()) return;
+    await loadProducts();
+    await loadOrders();
+    message("Portal refresh completed.", false);
+  }
+
+  $("loginButton").addEventListener("click", async function () {
+    if (busy) return;
+
+    const email = $("email").value.trim();
+    const password = $("password").value;
+
+    if (!email || !password) {
+      message("Enter your email and password.", true);
+      return;
+    }
+
+    busy = true;
+    $("loginButton").disabled = true;
+    message("Signing in...", false);
+
+    const { error } = await client.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    busy = false;
+    $("loginButton").disabled = false;
+
+    if (error) {
+      message("Login failed: " + error.message, true);
+      return;
+    }
+
+    if (await checkApproval()) {
+      await loadProducts();
+      await loadOrders();
+      message("Seller login successful.", false);
+    }
+  });
+
+  $("productForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    if (!currentUser || !currentApplication) {
+      message("Please sign in as an approved seller.", true);
+      return;
+    }
+
+    const name = $("productName").value.trim();
+    const price = Number($("price").value);
+    const store = $("storeName").value.trim();
+    const description = $("description").value.trim();
+    const file = $("imageFile").files[0];
+
+    if (!name || !store || !Number.isFinite(price) || price <= 0) {
+      message("Enter a product name, valid price, and store name.", true);
+      return;
+    }
+
+    if (file && file.size > 5 * 1024 * 1024) {
+      message("The image must be smaller than 5 MB.", true);
+      return;
+    }
+
+    if (file && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      message("Choose a JPG, PNG, or WebP image.", true);
+      return;
+    }
+
+    const button = $("addProductButton");
+    button.disabled = true;
+    message("Adding product...", false);
+
+    let imageUrl = null;
+
+    if (file) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = currentUser.id + "/" + Date.now() + "-" + safeName;
+
+      const { error: uploadError } = await client.storage
+        .from("products")
+        .upload(path, file, {
+          upsert: false,
+          contentType: file.type
+        });
+
+      if (uploadError) {
+        button.disabled = false;
+        message(
+          "Image upload failed: " + uploadError.message +
+          ". Check the products bucket policies.",
+          true
+        );
+        return;
+      }
+
+      const { data: publicData } = client.storage
+        .from("products")
+        .getPublicUrl(path);
+
+      imageUrl = publicData.publicUrl;
+    }
+
+    /*
+      Supabase must enforce that sellers can insert products
+      only for their own user_id. If the database has a
+      different ownership design, insertion should fail safely.
+    */
+    const { error } = await client
+      .from("products")
+      .insert({
+        name: name,
+        price: price,
+        store: store,
+        description: description,
+        image_url: imageUrl,
+        seller_id: currentUser.id
+      });
+
+    button.disabled = false;
+
+    if (error) {
+      message(
+        "Product was not added: " + error.message +
+        ". The database must authorize approved sellers to add products.",
+        true
+      );
+      return;
+    }
+
+    $("productForm").reset();
+    message("Product added successfully.", false);
+    await loadProducts();
+  });
+
+  $("refreshButton").addEventListener("click", refreshPortal);
+
+  $("logoutButton").addEventListener("click", async function () {
+    await client.auth.signOut();
+    showLogin();
+    message("You have logged out.", false);
+  });
+
+  client.auth.onAuthStateChange(function (event) {
+    if (event === "SIGNED_OUT") {
+      showLogin();
+    }
+  });
+
+  checkApproval().then(async function (approved) {
+    if (approved) {
+      await loadProducts();
+      await loadOrders();
+    }
+  });
+})();
+</script>
+</body>
+</html>
