@@ -7,9 +7,7 @@
   <title>Become a Seller | Edesvino</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -26,24 +24,21 @@
     .container {
       width: 100%;
       max-width: 460px;
-      padding: 28px;
+      padding: 25px;
       background: white;
       border-radius: 14px;
       box-shadow: 0 4px 18px #00000012;
     }
 
     h1 {
-      margin: 0 0 10px;
       text-align: center;
-      color: #111827;
-      font-size: 27px;
+      font-size: 26px;
     }
 
     .subtitle {
       text-align: center;
       color: #6b7280;
       line-height: 1.5;
-      margin-bottom: 24px;
     }
 
     label {
@@ -60,11 +55,6 @@
       font-size: 16px;
     }
 
-    input:focus {
-      outline: 2px solid #047857;
-      border-color: #047857;
-    }
-
     button {
       width: 100%;
       padding: 14px;
@@ -75,12 +65,10 @@
       color: white;
       font-size: 16px;
       font-weight: bold;
-      cursor: pointer;
     }
 
     button:disabled {
       opacity: 0.6;
-      cursor: not-allowed;
     }
 
     #message {
@@ -103,8 +91,10 @@
       text-decoration: none;
     }
 
-    a:hover {
-      text-decoration: underline;
+    .note {
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.5;
     }
   </style>
 </head>
@@ -114,78 +104,56 @@
     <h1>Become an Edesvino Seller</h1>
 
     <p class="subtitle">
-      Create your seller account and apply to open your store
-      on Edesvino Marketplace.
+      Already shopping on Edesvino? Use your existing account
+      to apply to become a seller. New users can register below.
     </p>
 
     <form id="sellerForm">
+
       <label for="fullName">Full Name</label>
-      <input
-        id="fullName"
-        type="text"
-        autocomplete="name"
-        maxlength="100"
-        placeholder="Enter your full name"
-        required
-      >
+      <input id="fullName" type="text"
+        autocomplete="name" maxlength="100" required>
 
       <label for="email">Email Address</label>
-      <input
-        id="email"
-        type="email"
-        autocomplete="email"
-        placeholder="Enter your email address"
-        required
-      >
+      <input id="email" type="email"
+        autocomplete="email" required>
 
       <label for="phone">Phone Number</label>
-      <input
-        id="phone"
-        type="tel"
-        autocomplete="tel"
-        maxlength="25"
-        placeholder="Enter your phone number"
-        required
-      >
+      <input id="phone" type="tel"
+        autocomplete="tel" maxlength="25" required>
 
       <label for="storeName">Store Name</label>
-      <input
-        id="storeName"
-        type="text"
-        maxlength="100"
-        placeholder="Enter your business name"
-        required
-      >
+      <input id="storeName" type="text"
+        maxlength="100" required>
 
-      <label for="password">Create Password</label>
-      <input
-        id="password"
-        type="password"
-        autocomplete="new-password"
-        minlength="8"
-        placeholder="At least 8 characters"
-        required
-      >
+      <label for="password">Account Password</label>
+      <input id="password" type="password"
+        autocomplete="current-password"
+        minlength="8" required>
 
-      <label for="confirmPassword">Confirm Password</label>
-      <input
-        id="confirmPassword"
-        type="password"
-        autocomplete="new-password"
-        minlength="8"
-        placeholder="Enter your password again"
-        required
-      >
+      <p class="note">
+        Existing customers: enter your current Edesvino password.
+        New users: choose a password and confirm it below.
+      </p>
+
+      <label for="confirmPassword">
+        Confirm Password (new users only)
+      </label>
+
+      <input id="confirmPassword" type="password"
+        autocomplete="new-password" minlength="8">
 
       <button id="submitButton" type="submit">
         Apply to Become a Seller
       </button>
+
     </form>
 
     <div id="message" role="status" aria-live="polite"></div>
 
     <div class="links">
-      Already have an account?
+      <a href="customer-login.html">Customer Login</a>
+      <br>
       <a href="seller-dashboard.html">Seller Dashboard</a>
       <br>
       <a href="./">Back to Marketplace</a>
@@ -198,25 +166,25 @@
     const SUPABASE_URL =
       "https://lxszilqypuglxyfyukdg.supabase.co";
 
-    const SUPABASE_PUBLISHABLE_KEY =
+    const SUPABASE_KEY =
       "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+    const client = window.supabase
+      ? window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_KEY
+        )
+      : null;
 
     const form = document.getElementById("sellerForm");
     const button = document.getElementById("submitButton");
     const message = document.getElementById("message");
 
-    const client = window.supabase
-      ? window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_PUBLISHABLE_KEY
-        )
-      : null;
-
-    function showMessage(text, isError = false) {
+    function showMessage(text, error = false) {
       message.textContent = text;
       message.style.display = "block";
-      message.style.color = isError ? "#991b1b" : "#065f46";
-      message.style.background = isError ? "#fee2e2" : "#d1fae5";
+      message.style.color = error ? "#991b1b" : "#065f46";
+      message.style.background = error ? "#fee2e2" : "#d1fae5";
     }
 
     form.addEventListener("submit", async function(event) {
@@ -224,7 +192,7 @@
 
       if (!client) {
         showMessage(
-          "The registration service could not load. Check your internet connection and try again.",
+          "Registration service unavailable. Check your internet connection.",
           true
         );
         return;
@@ -234,7 +202,7 @@
         document.getElementById("fullName").value.trim();
 
       const email =
-        document.getElementById("email").value.trim();
+        document.getElementById("email").value.trim().toLowerCase();
 
       const phone =
         document.getElementById("phone").value.trim();
@@ -248,30 +216,101 @@
       const confirmPassword =
         document.getElementById("confirmPassword").value;
 
-      if (!fullName || !email || !phone || !storeName) {
-        showMessage("Please complete all the fields.", true);
+      if (!fullName || !email || !phone || !storeName || !password) {
+        showMessage("Please complete all required fields.", true);
         return;
       }
 
       if (password.length < 8) {
-        showMessage(
-          "Your password must contain at least 8 characters.",
-          true
-        );
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        showMessage("Your passwords do not match.", true);
+        showMessage("Your password must contain at least 8 characters.", true);
         return;
       }
 
       button.disabled = true;
-      button.textContent = "Submitting application...";
+      button.textContent = "Checking account...";
       message.style.display = "none";
 
       try {
-        const { data, error } = await client.auth.signUp({
+        /*
+         * First, try the existing customer's account.
+         */
+        const login = await client.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (!login.error && login.data.user) {
+          const user = login.data.user;
+
+          const { data: application, error: lookupError } =
+            await client
+              .from("seller_applications")
+              .select("id,status")
+              .eq("user_id", user.id)
+              .maybeSingle();
+
+          if (lookupError) {
+            throw lookupError;
+          }
+
+          if (application) {
+            if (application.status === "approved") {
+              showMessage(
+                "Your seller application is already approved. " +
+                "Seller dashboard access still needs to be configured."
+              );
+            } else if (application.status === "rejected") {
+              showMessage(
+                "Your application was rejected. Please contact the marketplace owner."
+              );
+            } else {
+              showMessage(
+                "You have already applied. Your seller application is Pending."
+              );
+            }
+            return;
+          }
+
+          const { error: insertError } = await client
+            .from("seller_applications")
+            .insert({
+              user_id: user.id,
+              full_name: fullName,
+              phone: phone,
+              store_name: storeName,
+              status: "pending"
+            });
+
+          if (insertError) {
+            throw insertError;
+          }
+
+          form.reset();
+
+          showMessage(
+            "Application submitted successfully! Your status is Pending. " +
+            "The marketplace owner must approve you before you can manage a store."
+          );
+
+          return;
+        }
+
+        /*
+         * If the existing-account login fails, only attempt
+         * registration when the user confirms a new password.
+         */
+        if (!confirmPassword || password !== confirmPassword) {
+          showMessage(
+            "If you already have an Edesvino account, check your password. " +
+            "If you are a new user, enter and confirm the same new password.",
+            true
+          );
+          return;
+        }
+
+        button.textContent = "Creating account...";
+
+        const registration = await client.auth.signUp({
           email: email,
           password: password,
           options: {
@@ -281,39 +320,51 @@
               phone: phone,
               store_name: storeName
             },
-            emailRedirectTo: new URL(
-              "seller-dashboard.html",
-              window.location.href
-            ).href
+            emailRedirectTo:
+              new URL("seller-register.html", window.location.href).href
           }
         });
 
-        if (error) {
-          throw error;
+        if (registration.error) {
+          const errorText = registration.error.message || "";
+
+          if (/already registered|already been registered|user already exists/i.test(errorText)) {
+            showMessage(
+              "This email already has an account. Use its existing password " +
+              "in the Account Password field and leave Confirm Password empty.",
+              true
+            );
+            return;
+          }
+
+          throw registration.error;
         }
 
-        if (data.user) {
-          form.reset();
-
+        /*
+         * Supabase's signup trigger records a new seller application.
+         * Do not claim success if the account response has no user.
+         */
+        if (!registration.data.user) {
           showMessage(
-            "Your seller account registration was received. " +
-            "If email confirmation is required, check your inbox. " +
-            "Your seller application must be recorded and approved " +
-            "before you can manage products."
-          );
-        } else {
-          showMessage(
-            "Registration could not be confirmed. Please try again.",
+            "We could not confirm registration. Please try again.",
             true
           );
+          return;
         }
 
+        showMessage(
+          "Your account registration was received. If email confirmation " +
+          "is required, check your inbox. Your seller application must be " +
+          "recorded and approved before you can manage a store."
+        );
+
+        form.reset();
+
       } catch (error) {
-        console.error("Seller registration error:", error);
+        console.error("Seller application error:", error);
 
         showMessage(
-          error.message ||
-          "Registration failed. Please try again.",
+          error.message || "We could not submit your application. Please try again.",
           true
         );
 
