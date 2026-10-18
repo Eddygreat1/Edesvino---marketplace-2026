@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edesvino Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 18px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    h1, h2 { margin-top: 0; }
+    h1 { color: #047857; }
+    input, button {
+      width: 100%;
+      padding: 13px;
+      margin: 7px 0;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    input {
+      border: 1px solid #d1d5db;
+    }
+
+    button {
+      border: none;
+      background: #047857;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .reject { background: #b91c1c; }
+    .secondary { background: #374151; }
+
+    .application {
+      border: 1px solid #d1d5db;
+      padding: 15px;
+      margin: 12px 0;
+      border-radius: 9px;
+      overflow-wrap: anywhere;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 20px;
+      background: #e5e7eb;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .pending { background: #fef3c7; }
+    .approved { background: #d1fae5; }
+    .rejected { background: #fee2e2; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .actions button { flex: 1; }
+
+    .message {
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .error { background: #fee2e2; color: #991b1b; }
+    .success { background: #d1fae5; color: #065f46; }
+
+    .hidden { display: none; }
+
+    a { color: #047857; }
+
+    @media (max-width: 480px) {
+      .actions { flex-direction: column; }
+      body { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Edesvino Admin Dashboard</h1>
+    <p>Review applications from people who want to become Edesvino sellers.</p>
+    <p><a href="index.html">Back to Marketplace</a></p>
+  </div>
+
+  <div id="loginCard" class="card">
+    <h2>Administrator Login</h2>
+    <p>Sign in with your existing Edesvino owner account.</p>
+    <form id="loginForm">
+      <input
+        type="email"
+        id="email"
+        placeholder="Administrator email"
+        autocomplete="username"
+        required
+      >
+      <input
+        type="password"
+        id="password"
+        placeholder="Password"
+        autocomplete="current-password"
+        required
+      >
+      <button id="loginButton" type="submit">Log In</button>
+    </form>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="card">
+      <h2>Seller Applications</h2>
+      <p id="signedIn"></p>
+      <button id="refreshButton" type="button">Refresh Applications</button>
+      <button id="logoutButton" class="secondary" type="button">Log Out</button>
+      <div id="message" aria-live="polite"></div>
+    </div>
+
+    <div class="card">
+      <h2>Applications Received</h2>
+      <div id="applications">Loading applications...</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  "use strict";
+
+  const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  // Only the verified Edesvino owner account can use this dashboard.
+  const OWNER_ID = "b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  const loginCard = document.getElementById("loginCard");
+  const dashboard = document.getElementById("dashboard");
+  const loginForm = document.getElementById("loginForm");
+  const loginButton = document.getElementById("loginButton");
+  const applicationsBox = document.getElementById("applications");
+  const messageBox = document.getElementById("message");
+
+  let busy = false;
+
+  function showMessage(message, type) {
+    messageBox.textContent = message;
+    messageBox.className = "message " + (type || "");
+  }
+
+  function showLogin(message) {
+    dashboard.classList.add("hidden");
+    loginCard.classList.remove("hidden");
+    if (message) {
+      loginCard.insertAdjacentText("beforeend", "\n" + message);
+    }
+  }
+
+  function showDashboard(user) {
+    loginCard.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+    document.getElementById("signedIn").textContent =
+      "Signed in as " + (user.email || "administrator");
+  }
+
+  async function verifyAdministrator(user) {
+    if (!user || user.id !== OWNER_ID) {
+      await client.auth.signOut();
+      showLogin();
+      alert("Access denied. This account is not the registered Edesvino owner.");
+      return false;
+    }
+
+    const { data, error } = await client
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      await client.auth.signOut();
+      showLogin();
+      alert("Administrator verification failed. Please check the platform_admins record and permissions.");
+      return false;
+    }
+
+    showDashboard(user);
+    await loadApplications();
+    return true;
+  }
+
+  loginForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    if (busy) return;
+    busy = true;
+    loginButton.disabled = true;
+    loginButton.textContent = "Signing in...";
+
+    try {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await client.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (error) throw error;
+
+      await verifyAdministrator(data.user);
+    } catch (error) {
+      alert("Login failed: " + error.message);
+    } finally {
+      busy = false;
+      loginButton.disabled = false;
+      loginButton.textContent = "Log In";
+    }
+  });
+
+  async function loadApplications() {
+    applicationsBox.textContent = "Loading applications...";
+    showMessage("", "");
+
+    const { data, error } = await client
+      .from("seller_applications")
+      .select("id,user_id,full_name,email,phone,store_name,status");
+
+    if (error) {
+      applicationsBox.textContent =
+        "Could not load applications. " + error.message;
+      return;
+    }
+
+    applicationsBox.replaceChildren();
+
+    if (!data || data.length === 0) {
+      applicationsBox.textContent = "No seller applications found.";
+      return;
+    }
+
+    data.forEach(function (app) {
+      const card = document.createElement("div");
+      card.className = "application";
+
+      const name = document.createElement("h3");
+      name.textContent = app.full_name || "Name not provided";
+      card.appendChild(name);
+
+      const details = [
+        ["Email", app.email],
+        ["Phone", app.phone],
+        ["Store", app.store_name],
+        ["Application ID", app.id],
+        ["User ID", app.user_id]
+      ];
+
+      details.forEach(function (item) {
+        const p = document.createElement("p");
+        p.textContent = item[0] + ": " + (item[1] || "Not provided");
+        card.appendChild(p);
+      });
+
+      const status = document.createElement("span");
+      status.className = "status " + (app.status || "pending");
+      status.textContent = "Status: " + (app.status || "unknown");
+      card.appendChild(status);
+
+      if (app.status === "pending") {
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const approve = document.createElement("button");
+        approve.textContent = "Approve Seller";
+        approve.type = "button";
+        approve.addEventListener("click", function () {
+          updateStatus(app, "approved", approve, reject);
+        });
+
+        const reject = document.createElement("button");
+        reject.textContent = "Reject Application";
+        reject.className = "reject";
+        reject.type = "button";
+        reject.addEventListener("click", function () {
+          updateStatus(app, "rejected", approve, reject);
+        });
+
+        actions.appendChild(approve);
+        actions.appendChild(reject);
+        card.appendChild(actions);
+      }
+
+      applicationsBox.appendChild(card);
+    });
+  }
+
+  async function updateStatus(app, newStatus, approveButton, rejectButton) {
+    if (busy) return;
+
+    const action = newStatus === "approved" ? "approve" : "reject";
+
+    if (!confirm("Are you sure you want to " + action +
+      " the application from " + (app.full_name || "this applicant") + "?")) {
+      return;
+    }
+
+    busy = true;
+    approveButton.disabled = true;
+    rejectButton.disabled = true;
+    showMessage("Updating application...", "");
+
+    try {
+      const { data, error } = await client
+        .from("seller_applications")
+        .update({ status: newStatus })
+        .eq("id", app.id)
+        .eq("status", "pending")
+        .select("id,status")
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        throw new Error(
+          "No application was updated. Check administrator permissions and the current application status."
+        );
+      }
+
+      showMessage(
+        "Application successfully marked " + newStatus + ".",
+        "success"
+      );
+
+      await loadApplications();
+    } catch (error) {
+      showMessage("Update failed: " + error.message, "error");
+      approveButton.disabled = false;
+      rejectButton.disabled = false;
+    } finally {
+      busy = false;
+    }
+  }
+
+  document.getElementById("refreshButton").addEventListener("click", async function () {
+    if (!busy) await loadApplications();
+  });
+
+  document.getElementById("logoutButton").addEventListener("click", async function () {
+    const { error } = await client.auth.signOut();
+
+    if (error) {
+      showMessage("Logout failed: " + error.message, "error");
+      return;
+    }
+
+    dashboard.classList.add("hidden");
+    loginCard.classList.remove("hidden");
+    applicationsBox.replaceChildren();
+    messageBox.textContent = "";
+    document.getElementById("password").value = "";
+  });
+
+  async function start() {
+    const { data, error } = await client.auth.getSession();
+
+    if (error || !data.session) {
+      showLogin();
+      return;
+    }
+
+    await verifyAdministrator(data.session.user);
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>
