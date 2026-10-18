@@ -28,8 +28,9 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
-    h1, h2 { margin-top: 0; }
     h1 { color: #047857; }
+    h1, h2 { margin-top: 0; }
+
     input, button {
       width: 100%;
       padding: 13px;
@@ -38,9 +39,7 @@
       font-size: 16px;
     }
 
-    input {
-      border: 1px solid #d1d5db;
-    }
+    input { border: 1px solid #d1d5db; }
 
     button {
       border: none;
@@ -95,7 +94,6 @@
 
     .error { background: #fee2e2; color: #991b1b; }
     .success { background: #d1fae5; color: #065f46; }
-
     .hidden { display: none; }
 
     a { color: #047857; }
@@ -108,6 +106,7 @@
 </head>
 <body>
 <div class="container">
+
   <div class="card">
     <h1>Edesvino Admin Dashboard</h1>
     <p>Review applications from people who want to become Edesvino sellers.</p>
@@ -117,6 +116,7 @@
   <div id="loginCard" class="card">
     <h2>Administrator Login</h2>
     <p>Sign in with your existing Edesvino owner account.</p>
+
     <form id="loginForm">
       <input
         type="email"
@@ -125,6 +125,7 @@
         autocomplete="username"
         required
       >
+
       <input
         type="password"
         id="password"
@@ -132,6 +133,7 @@
         autocomplete="current-password"
         required
       >
+
       <button id="loginButton" type="submit">Log In</button>
     </form>
   </div>
@@ -140,8 +142,15 @@
     <div class="card">
       <h2>Seller Applications</h2>
       <p id="signedIn"></p>
-      <button id="refreshButton" type="button">Refresh Applications</button>
-      <button id="logoutButton" class="secondary" type="button">Log Out</button>
+
+      <button id="refreshButton" type="button">
+        Refresh Applications
+      </button>
+
+      <button id="logoutButton" class="secondary" type="button">
+        Log Out
+      </button>
+
       <div id="message" aria-live="polite"></div>
     </div>
 
@@ -150,18 +159,23 @@
       <div id="applications">Loading applications...</div>
     </div>
   </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 (function () {
   "use strict";
 
-  const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
 
-  // Only the verified Edesvino owner account can use this dashboard.
-  const OWNER_ID = "b860b02d-0bf3-4b8d-87f8-965753f22f72";
+  const SUPABASE_KEY =
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  const OWNER_ID =
+    "b860b02d-0bf3-4b8d-87f8-965753f22f72";
 
   const client = window.supabase.createClient(
     SUPABASE_URL,
@@ -182,17 +196,15 @@
     messageBox.className = "message " + (type || "");
   }
 
-  function showLogin(message) {
+  function showLogin() {
     dashboard.classList.add("hidden");
     loginCard.classList.remove("hidden");
-    if (message) {
-      loginCard.insertAdjacentText("beforeend", "\n" + message);
-    }
   }
 
   function showDashboard(user) {
     loginCard.classList.add("hidden");
     dashboard.classList.remove("hidden");
+
     document.getElementById("signedIn").textContent =
       "Signed in as " + (user.email || "administrator");
   }
@@ -201,7 +213,11 @@
     if (!user || user.id !== OWNER_ID) {
       await client.auth.signOut();
       showLogin();
-      alert("Access denied. This account is not the registered Edesvino owner.");
+
+      alert(
+        "Access denied. This account is not the registered Edesvino owner."
+      );
+
       return false;
     }
 
@@ -214,12 +230,17 @@
     if (error || !data) {
       await client.auth.signOut();
       showLogin();
-      alert("Administrator verification failed. Please check the platform_admins record and permissions.");
+
+      alert(
+        "Administrator verification failed. Please check the platform_admins record and permissions."
+      );
+
       return false;
     }
 
     showDashboard(user);
     await loadApplications();
+
     return true;
   }
 
@@ -227,13 +248,17 @@
     event.preventDefault();
 
     if (busy) return;
+
     busy = true;
     loginButton.disabled = true;
     loginButton.textContent = "Signing in...";
 
     try {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
+      const email =
+        document.getElementById("email").value.trim();
+
+      const password =
+        document.getElementById("password").value;
 
       const { data, error } = await client.auth.signInWithPassword({
         email: email,
@@ -243,8 +268,10 @@
       if (error) throw error;
 
       await verifyAdministrator(data.user);
+
     } catch (error) {
       alert("Login failed: " + error.message);
+
     } finally {
       busy = false;
       loginButton.disabled = false;
@@ -258,18 +285,21 @@
 
     const { data, error } = await client
       .from("seller_applications")
-      .select("id,user_id,full_name,email,phone,store_name,status");
+      .select(
+        "id,user_id,full_name,email,phone,store_name,status"
+      );
 
     if (error) {
       applicationsBox.textContent =
-        "Could not load applications. " + error.message;
+        "Could not load applications: " + error.message;
       return;
     }
 
     applicationsBox.replaceChildren();
 
     if (!data || data.length === 0) {
-      applicationsBox.textContent = "No seller applications found.";
+      applicationsBox.textContent =
+        "No seller applications found.";
       return;
     }
 
@@ -278,7 +308,9 @@
       card.className = "application";
 
       const name = document.createElement("h3");
-      name.textContent = app.full_name || "Name not provided";
+      name.textContent =
+        app.full_name || "Name not provided";
+
       card.appendChild(name);
 
       const details = [
@@ -291,13 +323,20 @@
 
       details.forEach(function (item) {
         const p = document.createElement("p");
-        p.textContent = item[0] + ": " + (item[1] || "Not provided");
+
+        p.textContent =
+          item[0] + ": " + (item[1] || "Not provided");
+
         card.appendChild(p);
       });
 
       const status = document.createElement("span");
-      status.className = "status " + (app.status || "pending");
-      status.textContent = "Status: " + (app.status || "unknown");
+      status.className =
+        "status " + (app.status || "pending");
+
+      status.textContent =
+        "Status: " + (app.status || "unknown");
+
       card.appendChild(status);
 
       if (app.status === "pending") {
@@ -307,14 +346,16 @@
         const approve = document.createElement("button");
         approve.textContent = "Approve Seller";
         approve.type = "button";
-        approve.addEventListener("click", function () {
-          updateStatus(app, "approved", approve, reject);
-        });
 
         const reject = document.createElement("button");
         reject.textContent = "Reject Application";
         reject.className = "reject";
         reject.type = "button";
+
+        approve.addEventListener("click", function () {
+          updateStatus(app, "approved", approve, reject);
+        });
+
         reject.addEventListener("click", function () {
           updateStatus(app, "rejected", approve, reject);
         });
@@ -328,19 +369,29 @@
     });
   }
 
-  async function updateStatus(app, newStatus, approveButton, rejectButton) {
+  async function updateStatus(
+    app,
+    newStatus,
+    approveButton,
+    rejectButton
+  ) {
     if (busy) return;
 
-    const action = newStatus === "approved" ? "approve" : "reject";
+    const action =
+      newStatus === "approved" ? "approve" : "reject";
 
-    if (!confirm("Are you sure you want to " + action +
-      " the application from " + (app.full_name || "this applicant") + "?")) {
+    if (!confirm(
+      "Are you sure you want to " + action +
+      " the application from " +
+      (app.full_name || "this applicant") + "?"
+    )) {
       return;
     }
 
     busy = true;
     approveButton.disabled = true;
     rejectButton.disabled = true;
+
     showMessage("Updating application...", "");
 
     try {
@@ -366,33 +417,46 @@
       );
 
       await loadApplications();
+
     } catch (error) {
-      showMessage("Update failed: " + error.message, "error");
+      showMessage(
+        "Update failed: " + error.message,
+        "error"
+      );
+
       approveButton.disabled = false;
       rejectButton.disabled = false;
+
     } finally {
       busy = false;
     }
   }
 
-  document.getElementById("refreshButton").addEventListener("click", async function () {
-    if (!busy) await loadApplications();
-  });
+  document
+    .getElementById("refreshButton")
+    .addEventListener("click", async function () {
+      if (!busy) await loadApplications();
+    });
 
-  document.getElementById("logoutButton").addEventListener("click", async function () {
-    const { error } = await client.auth.signOut();
+  document
+    .getElementById("logoutButton")
+    .addEventListener("click", async function () {
+      const { error } = await client.auth.signOut();
 
-    if (error) {
-      showMessage("Logout failed: " + error.message, "error");
-      return;
-    }
+      if (error) {
+        showMessage(
+          "Logout failed: " + error.message,
+          "error"
+        );
+        return;
+      }
 
-    dashboard.classList.add("hidden");
-    loginCard.classList.remove("hidden");
-    applicationsBox.replaceChildren();
-    messageBox.textContent = "";
-    document.getElementById("password").value = "";
-  });
+      dashboard.classList.add("hidden");
+      loginCard.classList.remove("hidden");
+      applicationsBox.replaceChildren();
+      messageBox.textContent = "";
+      document.getElementById("password").value = "";
+    });
 
   async function start() {
     const { data, error } = await client.auth.getSession();
