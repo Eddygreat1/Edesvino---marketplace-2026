@@ -65,10 +65,12 @@
       color: white;
       font-size: 16px;
       font-weight: bold;
+      cursor: pointer;
     }
 
     button:disabled {
       opacity: 0.6;
+      cursor: wait;
     }
 
     #message {
@@ -101,6 +103,7 @@
 
 <body>
   <main class="container">
+
     <h1>Become an Edesvino Seller</h1>
 
     <p class="subtitle">
@@ -111,25 +114,47 @@
     <form id="sellerForm">
 
       <label for="fullName">Full Name</label>
-      <input id="fullName" type="text"
-        autocomplete="name" maxlength="100" required>
+      <input
+        id="fullName"
+        type="text"
+        autocomplete="name"
+        maxlength="100"
+        required
+      >
 
       <label for="email">Email Address</label>
-      <input id="email" type="email"
-        autocomplete="email" required>
+      <input
+        id="email"
+        type="email"
+        autocomplete="email"
+        required
+      >
 
       <label for="phone">Phone Number</label>
-      <input id="phone" type="tel"
-        autocomplete="tel" maxlength="25" required>
+      <input
+        id="phone"
+        type="tel"
+        autocomplete="tel"
+        maxlength="25"
+        required
+      >
 
       <label for="storeName">Store Name</label>
-      <input id="storeName" type="text"
-        maxlength="100" required>
+      <input
+        id="storeName"
+        type="text"
+        maxlength="100"
+        required
+      >
 
       <label for="password">Account Password</label>
-      <input id="password" type="password"
+      <input
+        id="password"
+        type="password"
         autocomplete="current-password"
-        minlength="8" required>
+        minlength="8"
+        required
+      >
 
       <p class="note">
         Existing customers: enter your current Edesvino password.
@@ -140,8 +165,12 @@
         Confirm Password (new users only)
       </label>
 
-      <input id="confirmPassword" type="password"
-        autocomplete="new-password" minlength="8">
+      <input
+        id="confirmPassword"
+        type="password"
+        autocomplete="new-password"
+        minlength="8"
+      >
 
       <button id="submitButton" type="submit">
         Apply to Become a Seller
@@ -149,7 +178,11 @@
 
     </form>
 
-    <div id="message" role="status" aria-live="polite"></div>
+    <div
+      id="message"
+      role="status"
+      aria-live="polite"
+    ></div>
 
     <div class="links">
       <a href="customer-login.html">Customer Login</a>
@@ -158,6 +191,7 @@
       <br>
       <a href="./">Back to Marketplace</a>
     </div>
+
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -192,7 +226,7 @@
 
       if (!client) {
         showMessage(
-          "Registration service unavailable. Check your internet connection.",
+          "Registration service unavailable. Check your internet connection and try again.",
           true
         );
         return;
@@ -216,13 +250,25 @@
       const confirmPassword =
         document.getElementById("confirmPassword").value;
 
-      if (!fullName || !email || !phone || !storeName || !password) {
-        showMessage("Please complete all required fields.", true);
+      if (
+        !fullName ||
+        !email ||
+        !phone ||
+        !storeName ||
+        !password
+      ) {
+        showMessage(
+          "Please complete all required fields.",
+          true
+        );
         return;
       }
 
       if (password.length < 8) {
-        showMessage("Your password must contain at least 8 characters.", true);
+        showMessage(
+          "Your password must contain at least 8 characters.",
+          true
+        );
         return;
       }
 
@@ -232,7 +278,7 @@
 
       try {
         /*
-         * First, try the existing customer's account.
+         * First, check whether this is an existing customer.
          */
         const login = await client.auth.signInWithPassword({
           email: email,
@@ -242,40 +288,58 @@
         if (!login.error && login.data.user) {
           const user = login.data.user;
 
-          const { data: application, error: lookupError } =
-            await client
-              .from("seller_applications")
-              .select("id,status")
-              .eq("user_id", user.id)
-              .maybeSingle();
+          /*
+           * Check whether this customer has already applied.
+           */
+          const {
+            data: application,
+            error: lookupError
+          } = await client
+            .from("seller_applications")
+            .select("id,status")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
           if (lookupError) {
             throw lookupError;
           }
 
           if (application) {
-            if (application.status === "approved") {
+            const status = String(
+              application.status || "pending"
+            ).toLowerCase();
+
+            if (status === "approved") {
               showMessage(
                 "Your seller application is already approved. " +
-                "Seller dashboard access still needs to be configured."
+                "Please use the Seller Dashboard."
               );
-            } else if (application.status === "rejected") {
+            } else if (status === "rejected") {
               showMessage(
-                "Your application was rejected. Please contact the marketplace owner."
+                "Your application was rejected. " +
+                "Please contact the marketplace owner."
               );
             } else {
               showMessage(
-                "You have already applied. Your seller application is Pending."
+                "You have already applied. Your seller application is pending."
               );
             }
+
             return;
           }
 
-          const { error: insertError } = await client
+          /*
+           * Submit the existing customer's application.
+           * The email field is now included.
+           */
+          const {
+            error: insertError
+          } = await client
             .from("seller_applications")
             .insert({
               user_id: user.id,
               full_name: fullName,
+              email: user.email || email,
               phone: phone,
               store_name: storeName,
               status: "pending"
@@ -288,18 +352,22 @@
           form.reset();
 
           showMessage(
-            "Application submitted successfully! Your status is Pending. " +
-            "The marketplace owner must approve you before you can manage a store."
+            "Application submitted successfully! " +
+            "Your status is Pending. The marketplace owner " +
+            "must approve your application before you can manage a store."
           );
 
           return;
         }
 
         /*
-         * If the existing-account login fails, only attempt
-         * registration when the user confirms a new password.
+         * If existing-account login fails, require confirmation
+         * before attempting to create a new account.
          */
-        if (!confirmPassword || password !== confirmPassword) {
+        if (
+          !confirmPassword ||
+          password !== confirmPassword
+        ) {
           showMessage(
             "If you already have an Edesvino account, check your password. " +
             "If you are a new user, enter and confirm the same new password.",
@@ -310,6 +378,10 @@
 
         button.textContent = "Creating account...";
 
+        /*
+         * Register a new user as a seller.
+         * The database trigger creates the seller application.
+         */
         const registration = await client.auth.signUp({
           email: email,
           password: password,
@@ -321,17 +393,25 @@
               store_name: storeName
             },
             emailRedirectTo:
-              new URL("seller-register.html", window.location.href).href
+              new URL(
+                "seller-register.html",
+                window.location.href
+              ).href
           }
         });
 
         if (registration.error) {
-          const errorText = registration.error.message || "";
+          const errorText =
+            registration.error.message || "";
 
-          if (/already registered|already been registered|user already exists/i.test(errorText)) {
+          if (
+            /already registered|already been registered|user already exists/i
+              .test(errorText)
+          ) {
             showMessage(
-              "This email already has an account. Use its existing password " +
-              "in the Account Password field and leave Confirm Password empty.",
+              "This email already has an account. " +
+              "Use its existing password in the Account Password field " +
+              "and leave Confirm Password empty.",
               true
             );
             return;
@@ -340,10 +420,6 @@
           throw registration.error;
         }
 
-        /*
-         * Supabase's signup trigger records a new seller application.
-         * Do not claim success if the account response has no user.
-         */
         if (!registration.data.user) {
           showMessage(
             "We could not confirm registration. Please try again.",
@@ -352,19 +428,36 @@
           return;
         }
 
-        showMessage(
-          "Your account registration was received. If email confirmation " +
-          "is required, check your inbox. Your seller application must be " +
-          "recorded and approved before you can manage a store."
-        );
+        /*
+         * A signup response does not by itself prove that the
+         * user can sign in or that the application is approved.
+         */
+        if (!registration.data.session) {
+          showMessage(
+            "Your account registration was received. " +
+            "Please check your email if confirmation is required. " +
+            "Your seller application must be approved before " +
+            "you can manage a store."
+          );
+        } else {
+          showMessage(
+            "Your account has been created and your seller application " +
+            "has been submitted. Your status is Pending until the " +
+            "marketplace owner approves your application."
+          );
+        }
 
         form.reset();
 
       } catch (error) {
-        console.error("Seller application error:", error);
+        console.error(
+          "Seller application error:",
+          error
+        );
 
         showMessage(
-          error.message || "We could not submit your application. Please try again.",
+          error.message ||
+          "We could not submit your application. Please try again.",
           true
         );
 
