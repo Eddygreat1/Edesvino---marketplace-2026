@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edesvino Admin Dashboard</title>
+
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -25,11 +28,16 @@
       padding: 20px;
       margin-bottom: 18px;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
-    h1 { color: #047857; }
-    h1, h2 { margin-top: 0; }
+    h1 {
+      color: #047857;
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
 
     input, button {
       width: 100%;
@@ -39,7 +47,9 @@
       font-size: 16px;
     }
 
-    input { border: 1px solid #d1d5db; }
+    input {
+      border: 1px solid #d1d5db;
+    }
 
     button {
       border: none;
@@ -54,8 +64,13 @@
       cursor: wait;
     }
 
-    .reject { background: #b91c1c; }
-    .secondary { background: #374151; }
+    .reject {
+      background: #b91c1c;
+    }
+
+    .secondary {
+      background: #374151;
+    }
 
     .application {
       border: 1px solid #d1d5db;
@@ -74,47 +89,82 @@
       font-size: 13px;
     }
 
-    .pending { background: #fef3c7; }
-    .approved { background: #d1fae5; }
-    .rejected { background: #fee2e2; }
+    .pending {
+      background: #fef3c7;
+    }
+
+    .approved {
+      background: #d1fae5;
+    }
+
+    .rejected {
+      background: #fee2e2;
+    }
 
     .actions {
       display: flex;
       gap: 10px;
     }
 
-    .actions button { flex: 1; }
+    .actions button {
+      flex: 1;
+    }
 
     .message {
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
       margin: 10px 0;
       overflow-wrap: anywhere;
     }
 
-    .error { background: #fee2e2; color: #991b1b; }
-    .success { background: #d1fae5; color: #065f46; }
-    .hidden { display: none; }
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
 
-    a { color: #047857; }
+    .success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    a {
+      color: #047857;
+    }
 
     @media (max-width: 480px) {
-      .actions { flex-direction: column; }
-      body { padding: 10px; }
+      .actions {
+        flex-direction: column;
+      }
+
+      body {
+        padding: 10px;
+      }
     }
   </style>
 </head>
+
 <body>
 <div class="container">
 
   <div class="card">
     <h1>Edesvino Admin Dashboard</h1>
-    <p>Review applications from people who want to become Edesvino sellers.</p>
-    <p><a href="index.html">Back to Marketplace</a></p>
+
+    <p>
+      Review applications from people who want to become Edesvino sellers.
+    </p>
+
+    <p>
+      <a href="index.html">Back to Marketplace</a>
+    </p>
   </div>
 
   <div id="loginCard" class="card">
     <h2>Administrator Login</h2>
+
     <p>Sign in with your existing Edesvino owner account.</p>
 
     <form id="loginForm">
@@ -134,20 +184,30 @@
         required
       >
 
-      <button id="loginButton" type="submit">Log In</button>
+      <button id="loginButton" type="submit">
+        Log In
+      </button>
     </form>
+
+    <div id="loginMessage" aria-live="polite"></div>
   </div>
 
   <div id="dashboard" class="hidden">
+
     <div class="card">
       <h2>Seller Applications</h2>
+
       <p id="signedIn"></p>
 
       <button id="refreshButton" type="button">
         Refresh Applications
       </button>
 
-      <button id="logoutButton" class="secondary" type="button">
+      <button
+        id="logoutButton"
+        class="secondary"
+        type="button"
+      >
         Log Out
       </button>
 
@@ -156,8 +216,12 @@
 
     <div class="card">
       <h2>Applications Received</h2>
-      <div id="applications">Loading applications...</div>
+
+      <div id="applications" aria-live="polite">
+        Applications will appear here.
+      </div>
     </div>
+
   </div>
 
 </div>
@@ -184,16 +248,34 @@
 
   const loginCard = document.getElementById("loginCard");
   const dashboard = document.getElementById("dashboard");
+
   const loginForm = document.getElementById("loginForm");
   const loginButton = document.getElementById("loginButton");
-  const applicationsBox = document.getElementById("applications");
-  const messageBox = document.getElementById("message");
+
+  const refreshButton = document.getElementById("refreshButton");
+  const logoutButton = document.getElementById("logoutButton");
+
+  const applicationsBox =
+    document.getElementById("applications");
+
+  const messageBox =
+    document.getElementById("message");
+
+  const loginMessage =
+    document.getElementById("loginMessage");
 
   let busy = false;
 
   function showMessage(message, type) {
     messageBox.textContent = message;
-    messageBox.className = "message " + (type || "");
+    messageBox.className =
+      "message" + (type ? " " + type : "");
+  }
+
+  function showLoginMessage(message, type) {
+    loginMessage.textContent = message;
+    loginMessage.className =
+      "message" + (type ? " " + type : "");
   }
 
   function showLogin() {
@@ -214,8 +296,9 @@
       await client.auth.signOut();
       showLogin();
 
-      alert(
-        "Access denied. This account is not the registered Edesvino owner."
+      showLoginMessage(
+        "Access denied. This account is not the registered Edesvino owner.",
+        "error"
       );
 
       return false;
@@ -228,17 +311,18 @@
       .maybeSingle();
 
     if (error || !data) {
-      await client.auth.signOut();
       showLogin();
 
-      alert(
-        "Administrator verification failed. Please check the platform_admins record and permissions."
+      showLoginMessage(
+        "Administrator verification failed. Please check the platform_admins record and permissions.",
+        "error"
       );
 
       return false;
     }
 
     showDashboard(user);
+
     await loadApplications();
 
     return true;
@@ -252,6 +336,8 @@
     busy = true;
     loginButton.disabled = true;
     loginButton.textContent = "Signing in...";
+
+    showLoginMessage("Signing in...", "");
 
     try {
       const email =
@@ -267,10 +353,18 @@
 
       if (error) throw error;
 
-      await verifyAdministrator(data.user);
+      const verified =
+        await verifyAdministrator(data.user);
+
+      if (verified) {
+        showLoginMessage("", "");
+      }
 
     } catch (error) {
-      alert("Login failed: " + error.message);
+      showLoginMessage(
+        "Login failed: " + error.message,
+        "error"
+      );
 
     } finally {
       busy = false;
@@ -280,94 +374,160 @@
   });
 
   async function loadApplications() {
-    applicationsBox.textContent = "Loading applications...";
-    showMessage("", "");
+    applicationsBox.textContent =
+      "Loading seller applications...";
 
-    const { data, error } = await client
-      .from("seller_applications")
-      .select(
-        "id,user_id,full_name,email,phone,store_name,status"
-      );
+    try {
+      const { data, error } = await client
+        .from("seller_applications")
+        .select(
+          "id,user_id,full_name,email,phone,store_name,status"
+        )
+        .order("id", { ascending: true });
 
-    if (error) {
-      applicationsBox.textContent =
-        "Could not load applications: " + error.message;
-      return;
-    }
-
-    applicationsBox.replaceChildren();
-
-    if (!data || data.length === 0) {
-      applicationsBox.textContent =
-        "No seller applications found.";
-      return;
-    }
-
-    data.forEach(function (app) {
-      const card = document.createElement("div");
-      card.className = "application";
-
-      const name = document.createElement("h3");
-      name.textContent =
-        app.full_name || "Name not provided";
-
-      card.appendChild(name);
-
-      const details = [
-        ["Email", app.email],
-        ["Phone", app.phone],
-        ["Store", app.store_name],
-        ["Application ID", app.id],
-        ["User ID", app.user_id]
-      ];
-
-      details.forEach(function (item) {
-        const p = document.createElement("p");
-
-        p.textContent =
-          item[0] + ": " + (item[1] || "Not provided");
-
-        card.appendChild(p);
-      });
-
-      const status = document.createElement("span");
-      status.className =
-        "status " + (app.status || "pending");
-
-      status.textContent =
-        "Status: " + (app.status || "unknown");
-
-      card.appendChild(status);
-
-      if (app.status === "pending") {
-        const actions = document.createElement("div");
-        actions.className = "actions";
-
-        const approve = document.createElement("button");
-        approve.textContent = "Approve Seller";
-        approve.type = "button";
-
-        const reject = document.createElement("button");
-        reject.textContent = "Reject Application";
-        reject.className = "reject";
-        reject.type = "button";
-
-        approve.addEventListener("click", function () {
-          updateStatus(app, "approved", approve, reject);
-        });
-
-        reject.addEventListener("click", function () {
-          updateStatus(app, "rejected", approve, reject);
-        });
-
-        actions.appendChild(approve);
-        actions.appendChild(reject);
-        card.appendChild(actions);
+      if (error) {
+        throw error;
       }
 
-      applicationsBox.appendChild(card);
-    });
+      applicationsBox.replaceChildren();
+
+      if (!data || data.length === 0) {
+        applicationsBox.textContent =
+          "No seller applications found.";
+
+        return true;
+      }
+
+      data.forEach(function (app) {
+        const card = document.createElement("div");
+        card.className = "application";
+
+        const name = document.createElement("h3");
+
+        name.textContent =
+          app.full_name || "Name not provided";
+
+        card.appendChild(name);
+
+        const details = [
+          ["Email", app.email],
+          ["Phone", app.phone],
+          ["Store", app.store_name],
+          ["Application ID", app.id],
+          ["User ID", app.user_id]
+        ];
+
+        details.forEach(function (item) {
+          const p = document.createElement("p");
+
+          p.textContent =
+            item[0] + ": " + (item[1] || "Not provided");
+
+          card.appendChild(p);
+        });
+
+        const currentStatus =
+          String(app.status || "unknown").toLowerCase();
+
+        const status = document.createElement("span");
+
+        status.className =
+          "status " + currentStatus;
+
+        status.textContent =
+          "Status: " + (app.status || "unknown");
+
+        card.appendChild(status);
+
+        if (currentStatus === "pending") {
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const approve = document.createElement("button");
+
+          approve.textContent = "Approve Seller";
+          approve.type = "button";
+
+          const reject = document.createElement("button");
+
+          reject.textContent = "Reject Application";
+          reject.className = "reject";
+          reject.type = "button";
+
+          approve.addEventListener("click", function () {
+            updateStatus(app, "approved", approve, reject);
+          });
+
+          reject.addEventListener("click", function () {
+            updateStatus(app, "rejected", approve, reject);
+          });
+
+          actions.appendChild(approve);
+          actions.appendChild(reject);
+
+          card.appendChild(actions);
+        }
+
+        applicationsBox.appendChild(card);
+      });
+
+      return true;
+
+    } catch (error) {
+      applicationsBox.textContent =
+        "Could not load applications: " + error.message;
+
+      return false;
+    }
   }
+
+  refreshButton.addEventListener("click", async function () {
+    if (busy) {
+      showMessage(
+        "Please wait for the current action to finish.",
+        ""
+      );
+
+      return;
+    }
+
+    busy = true;
+
+    refreshButton.disabled = true;
+    refreshButton.textContent = "Refreshing...";
+
+    showMessage(
+      "Refreshing seller applications...",
+      ""
+    );
+
+    try {
+      const success = await loadApplications();
+
+      if (success) {
+        showMessage(
+          "Applications refreshed successfully.",
+          "success"
+        );
+      } else {
+        showMessage(
+          "Refresh failed. Read the error shown under Applications Received.",
+          "error"
+        );
+      }
+
+    } catch (error) {
+      showMessage(
+        "Refresh failed: " + error.message,
+        "error"
+      );
+
+    } finally {
+      busy = false;
+      refreshButton.disabled = false;
+      refreshButton.textContent = "Refresh Applications";
+    }
+  });
 
   async function updateStatus(
     app,
@@ -380,15 +540,16 @@
     const action =
       newStatus === "approved" ? "approve" : "reject";
 
-    if (!confirm(
+    const confirmed = confirm(
       "Are you sure you want to " + action +
       " the application from " +
       (app.full_name || "this applicant") + "?"
-    )) {
-      return;
-    }
+    );
+
+    if (!confirmed) return;
 
     busy = true;
+
     approveButton.disabled = true;
     rejectButton.disabled = true;
 
@@ -412,7 +573,8 @@
       }
 
       showMessage(
-        "Application successfully marked " + newStatus + ".",
+        "Application successfully marked " +
+        newStatus + ".",
         "success"
       );
 
@@ -432,45 +594,58 @@
     }
   }
 
-  document
-    .getElementById("refreshButton")
-    .addEventListener("click", async function () {
-      if (!busy) await loadApplications();
-    });
+  logoutButton.addEventListener("click", async function () {
+    if (busy) return;
 
-  document
-    .getElementById("logoutButton")
-    .addEventListener("click", async function () {
-      const { error } = await client.auth.signOut();
+    const { error } = await client.auth.signOut();
 
-      if (error) {
-        showMessage(
-          "Logout failed: " + error.message,
-          "error"
-        );
-        return;
-      }
+    if (error) {
+      showMessage(
+        "Logout failed: " + error.message,
+        "error"
+      );
 
-      dashboard.classList.add("hidden");
-      loginCard.classList.remove("hidden");
-      applicationsBox.replaceChildren();
-      messageBox.textContent = "";
-      document.getElementById("password").value = "";
-    });
-
-  async function start() {
-    const { data, error } = await client.auth.getSession();
-
-    if (error || !data.session) {
-      showLogin();
       return;
     }
 
-    await verifyAdministrator(data.session.user);
+    dashboard.classList.add("hidden");
+    loginCard.classList.remove("hidden");
+
+    applicationsBox.replaceChildren();
+    messageBox.textContent = "";
+    document.getElementById("password").value = "";
+
+    showLoginMessage("You have logged out.", "success");
+  });
+
+  async function start() {
+    try {
+      const { data, error } = await client.auth.getSession();
+
+      if (error) throw error;
+
+      if (!data.session) {
+        showLogin();
+        return;
+      }
+
+      await verifyAdministrator(data.session.user);
+
+    } catch (error) {
+      showLogin();
+
+      showLoginMessage(
+        "Could not start the admin dashboard: " +
+        error.message,
+        "error"
+      );
+    }
   }
 
   start();
+
 })();
 </script>
+
 </body>
 </html>
