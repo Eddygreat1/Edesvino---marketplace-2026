@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Edesvino Platform Commissions</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -17,7 +16,6 @@ button,input{width:100%;padding:12px;margin:7px 0 12px;border:1px solid #ccc;bor
 button{background:#087443;color:white;border:0;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.6}
 .secondary{background:#374151}
-.notice{padding:12px;background:#eef5ff;border-radius:6px;overflow-wrap:anywhere}
 .record{border:1px solid #ddd;border-radius:8px;padding:14px;margin:12px 0;overflow-wrap:anywhere}
 .hidden{display:none}
 .summary{font-size:20px;font-weight:bold}
@@ -27,7 +25,6 @@ a{color:#087443}
 
 <body>
 <main>
-
 <section class="card">
 <h1>Edesvino Platform Commissions</h1>
 <p>Review platform commission records and seller earnings.</p>
@@ -36,22 +33,17 @@ a{color:#087443}
 
 <section class="card" id="loginCard">
 <h2>Owner Login</h2>
-
 <form id="loginForm">
-<label>Email Address</label>
+<label for="email">Email Address</label>
 <input id="email" type="email" autocomplete="username" required>
-
-<label>Password</label>
+<label for="password">Password</label>
 <input id="password" type="password" autocomplete="current-password" required>
-
 <button id="loginButton" type="submit">Log In</button>
 </form>
-
 <p id="loginMessage" role="status"></p>
 </section>
 
 <section id="dashboard" class="hidden">
-
 <section class="card">
 <h2>Account</h2>
 <p id="signedIn"></p>
@@ -72,7 +64,6 @@ a{color:#087443}
 <h2>Commission Records</h2>
 <div id="records">Loading commission records...</div>
 </section>
-
 </section>
 </main>
 
@@ -80,38 +71,23 @@ a{color:#087443}
 (function(){
 "use strict";
 
-const SUPABASE_URL =
-"https://lxszilqypuglxyfyukdg.supabase.co";
+const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+const OWNER_ID = "b860b02d-0bf3-4b8d-87f8-965753f22f72";
 
-const SUPABASE_KEY =
-"sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
-
-const OWNER_ID =
-"b860b02d-0bf3-4b8d-87f8-965753f22f72";
-
-const client = window.supabase.createClient(
-SUPABASE_URL,
-SUPABASE_KEY
-);
-
+const client = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 
-let currentUser = null;
-
 function escapeHTML(value){
-return String(value ?? "").replace(/[&<>"']/g, char => ({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#39;"
+return String(value ?? "").replace(/[&<>"']/g,char=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
 }[char]));
 }
 
 function money(value){
-return "₦" + Number(value || 0).toLocaleString("en-NG",{
-minimumFractionDigits:2,
-maximumFractionDigits:2
+const number = Number(value);
+return "₦" + (Number.isFinite(number)?number:0).toLocaleString("en-NG",{
+minimumFractionDigits:2,maximumFractionDigits:2
 });
 }
 
@@ -131,12 +107,9 @@ button.disabled = false;
 }
 
 function showDashboard(user){
-currentUser = user;
-
 $("loginCard").classList.add("hidden");
 $("dashboard").classList.remove("hidden");
 $("signedIn").textContent = "Signed in as " + user.email;
-
 loadCommissions();
 }
 
@@ -150,69 +123,63 @@ const {data,error} = await client
 .order("id",{ascending:false});
 
 if(error){
-$("records").textContent =
-"Could not load commissions: " + error.message;
-
+$("records").textContent = "Could not load commissions: " + error.message;
 $("recordCount").textContent = "Records: unavailable";
 $("totalCommission").textContent = "Total Commission: unavailable";
 $("totalSellerEarnings").textContent = "Seller Earnings: unavailable";
-showMessage("message","Please check the table permissions and try again.");
-return;
+showMessage("message","Please check table permissions and try again.");
+throw error;
 }
 
 const rows = data || [];
-
 let commissionTotal = 0;
 let sellerTotal = 0;
 
-rows.forEach(row => {
-commissionTotal += Number(row.Commission_amount || 0);
-sellerTotal += Number(row.seller_amount || 0);
+rows.forEach(row=>{
+commissionTotal += Number(row.commission_amount ?? 0);
+sellerTotal += Number(row.seller_amount ?? 0);
 });
 
 $("recordCount").textContent = "Records: " + rows.length;
-$("totalCommission").textContent =
-"Total Commission: " + money(commissionTotal);
+$("totalCommission").textContent = "Total Commission: " + money(commissionTotal);
+$("totalSellerEarnings").textContent = "Seller Earnings: " + money(sellerTotal);
 
-$("totalSellerEarnings").textContent =
-"Seller Earnings: " + money(sellerTotal);
-
-if(rows.length === 0){
-$("records").textContent =
-"No commission records were found in the table.";
+if(!rows.length){
+$("records").textContent = "No commission records were found.";
 return;
 }
 
-$("records").innerHTML = rows.map(row => `
+$("records").innerHTML = rows.map(row=>{
+const rate = Number(row.commission_rate);
+const rateText = Number.isFinite(rate)
+? (rate * 100).toLocaleString("en-NG",{maximumFractionDigits:2}) + "%"
+: "Unavailable";
+
+return `
 <div class="record">
 <p><strong>Commission ID:</strong> ${escapeHTML(row.id)}</p>
 <p><strong>Order ID:</strong> ${escapeHTML(row.order_id)}</p>
 <p><strong>Seller ID:</strong> ${escapeHTML(row.seller_id)}</p>
-<p><strong>Commission Rate:</strong> ${escapeHTML(row.Commission_rate)}%</p>
-<p><strong>Commission Amount:</strong> ${money(row.Commission_amount)}</p>
+<p><strong>Commission Rate:</strong> ${escapeHTML(rateText)}</p>
+<p><strong>Commission Amount:</strong> ${money(row.commission_amount)}</p>
 <p><strong>Seller Earnings:</strong> ${money(row.seller_amount)}</p>
-</div>
-`).join("");
+</div>`;
+}).join("");
 }
 
 $("loginForm").addEventListener("submit",async function(event){
 event.preventDefault();
-
 const button = $("loginButton");
 setBusy(button,true,"Signing in...");
 showMessage("loginMessage","");
 
+try{
 const {data,error} = await client.auth.signInWithPassword({
 email:$("email").value.trim(),
 password:$("password").value
 });
 
-setBusy(button,false,"Log In");
-
-if(error){
-showMessage("loginMessage","Login failed: " + error.message);
-return;
-}
+if(error) throw error;
 
 if(!data.user || data.user.id !== OWNER_ID){
 await client.auth.signOut();
@@ -221,12 +188,16 @@ return;
 }
 
 showDashboard(data.user);
+}catch(error){
+showMessage("loginMessage","Login failed: " + (error.message || "Please try again."));
+}finally{
+setBusy(button,false,"Log In");
+}
 });
 
 $("refreshButton").addEventListener("click",async function(){
 const button = $("refreshButton");
 setBusy(button,true,"Refreshing...");
-
 showMessage("message","Refreshing commission records...");
 
 try{
@@ -241,12 +212,9 @@ setBusy(button,false,"Refresh Commissions");
 
 $("logoutButton").addEventListener("click",async function(){
 await client.auth.signOut();
-
-currentUser = null;
 $("dashboard").classList.add("hidden");
 $("loginCard").classList.remove("hidden");
 $("password").value = "";
-
 showMessage("loginMessage","You have logged out.");
 });
 
@@ -264,15 +232,12 @@ await client.auth.signOut();
 showMessage("loginMessage","Access denied. This page is for the Edesvino owner only.");
 return;
 }
-
 showDashboard(data.session.user);
 }
 }
 
 restoreSession();
-
 })();
 </script>
-
 </body>
 </html>
