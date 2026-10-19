@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Withdrawals</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f3f6f4;color:#222;margin:0;padding:14px}
+main{max-width:850px;margin:auto}
+.card{background:white;padding:18px;margin-bottom:16px;border-radius:10px}
+h1,h2{margin-top:0}
+input,select,button{width:100%;padding:12px;margin:7px 0 12px;border:1px solid #ccc;border-radius:6px;font-size:16px}
+button{background:#087443;color:white;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+.secondary{background:#374151}
+.request{border:1px solid #ddd;border-radius:8px;padding:13px;margin:12px 0;overflow-wrap:anywhere}
+.notice{padding:12px;background:#eef5ff;border-radius:6px;overflow-wrap:anywhere}
+.hidden{display:none}
+a{color:#087443}
+small{color:#555}
+</style>
+</head>
+
+<body>
+<main>
+
+<section class="card">
+<h1>Edesvino Withdrawals</h1>
+<p>Request seller withdrawals and manage withdrawal payments.</p>
+<a href="index.html">Back to Marketplace</a>
+</section>
+
+<section class="card" id="loginCard">
+<h2>Account Login</h2>
+<p>Sign in with your existing Edesvino account.</p>
+
+<form id="loginForm">
+<label>Email Address</label>
+<input id="email" type="email" autocomplete="username" required>
+
+<label>Password</label>
+<input id="password" type="password" autocomplete="current-password" required>
+
+<button id="loginButton" type="submit">Log In</button>
+</form>
+
+<p id="loginMessage" role="status"></p>
+</section>
+
+<section id="dashboard" class="hidden">
+
+<section class="card">
+<h2>Account</h2>
+<p id="signedIn"></p>
+<button id="refreshButton" type="button">Refresh Withdrawals</button>
+<button id="logoutButton" type="button" class="secondary">Log Out</button>
+<p id="message" role="status"></p>
+</section>
+
+<section class="card" id="sellerPanel">
+<h2>Request a Withdrawal</h2>
+<p>Enter your bank details and the amount you want to withdraw.</p>
+
+<form id="withdrawalForm">
+<label>Amount (₦)</label>
+<input id="amount" type="number" min="1" step="0.01" required>
+
+<label>Bank Name</label>
+<input id="bankName" type="text" maxlength="100" required>
+
+<label>Account Name</label>
+<input id="accountName" type="text" maxlength="150" required>
+
+<label>Account Number</label>
+<input id="accountNumber" type="text" inputmode="numeric"
+maxlength="30" required>
+
+<button id="submitButton" type="submit">Submit Withdrawal Request</button>
+</form>
+
+<p id="requestMessage" role="status"></p>
+</section>
+
+<section class="card">
+<h2 id="listHeading">My Withdrawal Requests</h2>
+<div id="requests">Loading withdrawal requests...</div>
+</section>
+
+</section>
+
+</main>
+
+<script>
+(function(){
+"use strict";
+
+const SUPABASE_URL =
+"https://lxszilqypuglxyfyukdg.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+const OWNER_ID =
+"b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+const client = window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+const $ = id => document.getElementById(id);
+
+let currentUser = null;
+let isOwner = false;
+
+function escapeHTML(value){
+return String(value ?? "").replace(/[&<>"']/g, char => ({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[char]));
+}
+
+function money(value){
+return "₦" + Number(value || 0).toLocaleString("en-NG",{
+minimumFractionDigits:2,
+maximumFractionDigits:2
+});
+}
+
+function showMessage(id,text){
+$(id).textContent = text;
+}
+
+function setBusy(button,busy,label){
+button.disabled = busy;
+if(busy){
+button.dataset.originalText = button.textContent;
+button.textContent = label;
+}else{
+button.textContent = button.dataset.originalText || label;
+}
+}
+
+function showDashboard(user){
+currentUser = user;
+isOwner = user.id === OWNER_ID;
+
+$("loginCard").classList.add("hidden");
+$("dashboard").classList.remove("hidden");
+$("signedIn").textContent = "Signed in as " + user.email;
+
+$("sellerPanel").classList.toggle("hidden",isOwner);
+$("listHeading").textContent = isOwner
+? "All Seller Withdrawal Requests"
+: "My Withdrawal Requests";
+
+loadRequests();
+}
+
+async function loadRequests(){
+$("requests").textContent = "Loading withdrawal requests...";
+showMessage("message","");
+
+let query = client
+.from("withdrawals")
+.select("id,seller_id,amount,status,bank_name,account_name,account_number,created_at")
+.order("created_at",{ascending:false});
+
+if(!isOwner){
+query = query.eq("seller_id",currentUser.id);
+}
+
+const {data,error} = await query;
+
+if(error){
+$("requests").textContent =
+"Could not load withdrawal requests: " + error.message;
+return;
+}
+
+if(!data || data.length === 0){
+$("requests").textContent = isOwner
+? "No withdrawal requests have been received."
+: "You have not submitted any withdrawal requests yet.";
+return;
+}
+
+$("requests").innerHTML = data.map(row => {
+const date = row.created_at
+? new Date(row.created_at).toLocaleString()
+: "Date unavailable";
+
+let adminControls = "";
+
+if(isOwner){
+adminControls = `
+<p><strong>Seller ID:</strong><br>
+${escapeHTML(row.seller_id)}</p>
+
+<label for="status-${escapeHTML(row.id)}">Update status</label>
+<select id="status-${escapeHTML(row.id)}">
+<option value="Pending" ${row.status==="Pending"?"selected":""}>Pending</option>
+<option value="Approved" ${row.status==="Approved"?"selected":""}>Approved</option>
+<option value="Paid" ${row.status==="Paid"?"selected":""}>Paid</option>
+<option value="Rejected" ${row.status==="Rejected"?"selected":""}>Rejected</option>
+</select>
+
+<button type="button"
+data-update="${escapeHTML(row.id)}">
+Save Status
+</button>`;
+}
+
+return `
+<div class="request">
+<p><strong>Withdrawal ID:</strong> ${escapeHTML(row.id)}</p>
+<p><strong>Amount:</strong> ${money(row.amount)}</p>
+<p><strong>Status:</strong> ${escapeHTML(row.status || "Pending")}</p>
+<p><strong>Bank:</strong> ${escapeHTML(row.bank_name)}</p>
+<p><strong>Account Name:</strong> ${escapeHTML(row.account_name)}</p>
+<p><strong>Account Number:</strong> ${escapeHTML(row.account_number)}</p>
+<p><strong>Date:</strong> ${escapeHTML(date)}</p>
+${adminControls}
+</div>`;
+}).join("");
+}
+
+$("loginForm").addEventListener("submit",async function(event){
+event.preventDefault();
+
+const button = $("loginButton");
+setBusy(button,true,"Signing in...");
+showMessage("loginMessage","");
+
+const {data,error} = await client.auth.signInWithPassword({
+email:$("email").value.trim(),
+password:$("password").value
+});
+
+setBusy(button,false,"Log In");
+
+if(error){
+showMessage("loginMessage","Login failed: " + error.message);
+return;
+}
+
+if(data.user){
+showDashboard(data.user);
+}
+});
+
+$("withdrawalForm").addEventListener("submit",async function(event){
+event.preventDefault();
+
+if(!currentUser || isOwner){
+showMessage("requestMessage","Please sign in with your seller account.");
+return;
+}
+
+const amount = Number($("amount").value);
+const bankName = $("bankName").value.trim();
+const accountName = $("accountName").value.trim();
+const accountNumber = $("accountNumber").value.trim();
+
+if(!Number.isFinite(amount) || amount <= 0){
+showMessage("requestMessage","Enter a valid withdrawal amount.");
+return;
+}
+
+if(!bankName || !accountName || !accountNumber){
+showMessage("requestMessage","Please complete all bank details.");
+return;
+}
+
+const button = $("submitButton");
+setBusy(button,true,"Submitting request...");
+showMessage("requestMessage","");
+
+const {error} = await client
+.from("withdrawals")
+.insert([{
+seller_id:currentUser.id,
+amount:amount,
+status:"Pending",
+bank_name:bankName,
+account_name:accountName,
+account_number:accountNumber
+}]);
+
+setBusy(button,false,"Submit Withdrawal Request");
+
+if(error){
+showMessage("requestMessage",
+"Request could not be submitted: " + error.message);
+return;
+}
+
+$("withdrawalForm").reset();
+showMessage("requestMessage",
+"Withdrawal request submitted successfully. It is awaiting review.");
+
+await loadRequests();
+});
+
+$("requests").addEventListener("click",async function(event){
+const button = event.target.closest("button[data-update]");
+if(!button) return;
+
+if(!isOwner){
+showMessage("message","Only the owner can update withdrawal statuses.");
+return;
+}
+
+const id = button.dataset.update;
+const select = $("status-" + id);
+const status = select.value;
+
+if(!confirm("Change this withdrawal status to " + status + "?")){
+return;
+}
+
+button.disabled = true;
+button.textContent = "Saving...";
+
+const {error} = await client
+.from("withdrawals")
+.update({status:status})
+.eq("id",id);
+
+button.disabled = false;
+button.textContent = "Save Status";
+
+if(error){
+showMessage("message","Status update failed: " + error.message);
+return;
+}
+
+showMessage("message","Withdrawal status updated successfully.");
+await loadRequests();
+});
+
+$("refreshButton").addEventListener("click",loadRequests);
+
+$("logoutButton").addEventListener("click",async function(){
+await client.auth.signOut();
+currentUser = null;
+isOwner = false;
+$("dashboard").classList.add("hidden");
+$("loginCard").classList.remove("hidden");
+$("password").value = "";
+showMessage("loginMessage","You have logged out.");
+});
+
+async function restoreSession(){
+const {data,error} = await client.auth.getSession();
+
+if(error){
+showMessage("loginMessage","Could not restore session: " + error.message);
+return;
+}
+
+if(data.session && data.session.user){
+showDashboard(data.session.user);
+}
+}
+
+restoreSession();
+
+})();
+</script>
+
+</body>
+</html>
