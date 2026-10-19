@@ -346,7 +346,26 @@ showMessage("message","Withdrawal status updated successfully.");
 await loadRequests();
 });
 
-$("refreshButton").addEventListener("click",loadRequests);
+$("refreshButton").addEventListener("click", async function () {
+  const button = $("refreshButton");
+
+  button.disabled = true;
+  button.textContent = "Refreshing...";
+  showMessage("message", "Refreshing withdrawal records...");
+
+  try {
+    await loadRequests();
+    showMessage("message", "Withdrawal refresh completed.");
+  } catch (error) {
+    showMessage(
+      "message",
+      "Refresh failed: " + (error.message || "Please try again.")
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = "Refresh Withdrawals";
+  }
+});
 
 $("logoutButton").addEventListener("click",async function(){
 await client.auth.signOut();
