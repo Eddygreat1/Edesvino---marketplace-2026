@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Platform Commissions</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f3f6f4;color:#222;margin:0;padding:14px}
+main{max-width:900px;margin:auto}
+.card{background:white;padding:18px;margin-bottom:16px;border-radius:10px}
+h1,h2{margin-top:0}
+button,input{width:100%;padding:12px;margin:7px 0 12px;border:1px solid #ccc;border-radius:6px;font-size:16px}
+button{background:#087443;color:white;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+.secondary{background:#374151}
+.notice{padding:12px;background:#eef5ff;border-radius:6px;overflow-wrap:anywhere}
+.record{border:1px solid #ddd;border-radius:8px;padding:14px;margin:12px 0;overflow-wrap:anywhere}
+.hidden{display:none}
+.summary{font-size:20px;font-weight:bold}
+a{color:#087443}
+</style>
+</head>
+
+<body>
+<main>
+
+<section class="card">
+<h1>Edesvino Platform Commissions</h1>
+<p>Review platform commission records and seller earnings.</p>
+<a href="index.html">Back to Marketplace</a>
+</section>
+
+<section class="card" id="loginCard">
+<h2>Owner Login</h2>
+
+<form id="loginForm">
+<label>Email Address</label>
+<input id="email" type="email" autocomplete="username" required>
+
+<label>Password</label>
+<input id="password" type="password" autocomplete="current-password" required>
+
+<button id="loginButton" type="submit">Log In</button>
+</form>
+
+<p id="loginMessage" role="status"></p>
+</section>
+
+<section id="dashboard" class="hidden">
+
+<section class="card">
+<h2>Account</h2>
+<p id="signedIn"></p>
+<button id="refreshButton" type="button">Refresh Commissions</button>
+<button id="logoutButton" type="button" class="secondary">Log Out</button>
+<p id="message" role="status"></p>
+</section>
+
+<section class="card">
+<h2>Commission Summary</h2>
+<p id="recordCount">Records: 0</p>
+<p class="summary" id="totalCommission">Total Commission: ₦0.00</p>
+<p class="summary" id="totalSellerEarnings">Seller Earnings: ₦0.00</p>
+<small>Totals reflect the commission records currently returned by Supabase.</small>
+</section>
+
+<section class="card">
+<h2>Commission Records</h2>
+<div id="records">Loading commission records...</div>
+</section>
+
+</section>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+const SUPABASE_URL =
+"https://lxszilqypuglxyfyukdg.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+const OWNER_ID =
+"b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+const client = window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+const $ = id => document.getElementById(id);
+
+let currentUser = null;
+
+function escapeHTML(value){
+return String(value ?? "").replace(/[&<>"']/g, char => ({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[char]));
+}
+
+function money(value){
+return "₦" + Number(value || 0).toLocaleString("en-NG",{
+minimumFractionDigits:2,
+maximumFractionDigits:2
+});
+}
+
+function showMessage(id,text){
+$(id).textContent = text;
+}
+
+function setBusy(button,busy,defaultText){
+if(busy){
+button.dataset.originalText = button.textContent;
+button.textContent = defaultText;
+button.disabled = true;
+}else{
+button.textContent = button.dataset.originalText || defaultText;
+button.disabled = false;
+}
+}
+
+function showDashboard(user){
+currentUser = user;
+
+$("loginCard").classList.add("hidden");
+$("dashboard").classList.remove("hidden");
+$("signedIn").textContent = "Signed in as " + user.email;
+
+loadCommissions();
+}
+
+async function loadCommissions(){
+$("records").textContent = "Loading commission records...";
+showMessage("message","");
+
+const {data,error} = await client
+.from("platform_commissions")
+.select("*")
+.order("id",{ascending:false});
+
+if(error){
+$("records").textContent =
+"Could not load commissions: " + error.message;
+
+$("recordCount").textContent = "Records: unavailable";
+$("totalCommission").textContent = "Total Commission: unavailable";
+$("totalSellerEarnings").textContent = "Seller Earnings: unavailable";
+showMessage("message","Please check the table permissions and try again.");
+return;
+}
+
+const rows = data || [];
+
+let commissionTotal = 0;
+let sellerTotal = 0;
+
+rows.forEach(row => {
+commissionTotal += Number(row.Commission_amount || 0);
+sellerTotal += Number(row.seller_amount || 0);
+});
+
+$("recordCount").textContent = "Records: " + rows.length;
+$("totalCommission").textContent =
+"Total Commission: " + money(commissionTotal);
+
+$("totalSellerEarnings").textContent =
+"Seller Earnings: " + money(sellerTotal);
+
+if(rows.length === 0){
+$("records").textContent =
+"No commission records were found in the table.";
+return;
+}
+
+$("records").innerHTML = rows.map(row => `
+<div class="record">
+<p><strong>Commission ID:</strong> ${escapeHTML(row.id)}</p>
+<p><strong>Order ID:</strong> ${escapeHTML(row.order_id)}</p>
+<p><strong>Seller ID:</strong> ${escapeHTML(row.seller_id)}</p>
+<p><strong>Commission Rate:</strong> ${escapeHTML(row.Commission_rate)}%</p>
+<p><strong>Commission Amount:</strong> ${money(row.Commission_amount)}</p>
+<p><strong>Seller Earnings:</strong> ${money(row.seller_amount)}</p>
+</div>
+`).join("");
+}
+
+$("loginForm").addEventListener("submit",async function(event){
+event.preventDefault();
+
+const button = $("loginButton");
+setBusy(button,true,"Signing in...");
+showMessage("loginMessage","");
+
+const {data,error} = await client.auth.signInWithPassword({
+email:$("email").value.trim(),
+password:$("password").value
+});
+
+setBusy(button,false,"Log In");
+
+if(error){
+showMessage("loginMessage","Login failed: " + error.message);
+return;
+}
+
+if(!data.user || data.user.id !== OWNER_ID){
+await client.auth.signOut();
+showMessage("loginMessage","Access denied. This page is for the Edesvino owner only.");
+return;
+}
+
+showDashboard(data.user);
+});
+
+$("refreshButton").addEventListener("click",async function(){
+const button = $("refreshButton");
+setBusy(button,true,"Refreshing...");
+
+showMessage("message","Refreshing commission records...");
+
+try{
+await loadCommissions();
+showMessage("message","Commission refresh completed.");
+}catch(error){
+showMessage("message","Refresh failed: " + (error.message || "Please try again."));
+}finally{
+setBusy(button,false,"Refresh Commissions");
+}
+});
+
+$("logoutButton").addEventListener("click",async function(){
+await client.auth.signOut();
+
+currentUser = null;
+$("dashboard").classList.add("hidden");
+$("loginCard").classList.remove("hidden");
+$("password").value = "";
+
+showMessage("loginMessage","You have logged out.");
+});
+
+async function restoreSession(){
+const {data,error} = await client.auth.getSession();
+
+if(error){
+showMessage("loginMessage","Could not restore session: " + error.message);
+return;
+}
+
+if(data.session && data.session.user){
+if(data.session.user.id !== OWNER_ID){
+await client.auth.signOut();
+showMessage("loginMessage","Access denied. This page is for the Edesvino owner only.");
+return;
+}
+
+showDashboard(data.session.user);
+}
+}
+
+restoreSession();
+
+})();
+</script>
+
+</body>
+</html>
