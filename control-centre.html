@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edesvino Control Centre</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f3f6f4;
+            color: #222;
+        }
+
+        header {
+            background: #075e3b;
+            color: white;
+            padding: 25px 16px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 10px;
+            font-size: 27px;
+        }
+
+        header p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px 14px 35px;
+        }
+
+        .welcome {
+            background: white;
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 22px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .welcome h2 {
+            color: #075e3b;
+            margin-top: 0;
+        }
+
+        .section-title {
+            font-size: 19px;
+            margin: 26px 0 12px;
+            color: #075e3b;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border-left: 5px solid #087443;
+        }
+
+        .card h3 {
+            margin: 0 0 9px;
+            font-size: 17px;
+        }
+
+        .card p {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+            min-height: 40px;
+        }
+
+        .button {
+            display: block;
+            text-align: center;
+            background: #087443;
+            color: white;
+            padding: 12px 10px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .button:hover {
+            background: #064f30;
+        }
+
+        .customer {
+            border-left-color: #2563eb;
+        }
+
+        .customer .button {
+            background: #2563eb;
+        }
+
+        .customer .button:hover {
+            background: #1d4ed8;
+        }
+
+        .admin {
+            border-left-color: #a16207;
+        }
+
+        .admin .button {
+            background: #a16207;
+        }
+
+        .admin .button:hover {
+            background: #854d0e;
+        }
+
+        .finance {
+            border-left-color: #7c3aed;
+        }
+
+        .finance .button {
+            background: #7c3aed;
+        }
+
+        .finance .button:hover {
+            background: #5b21b6;
+        }
+
+        .notice {
+            background: #fff7d6;
+            border-left: 5px solid #eab308;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 24px;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px 12px;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>EDESVINO</h1>
+    <p>Marketplace Control Centre</p>
+    <p>One place to access your marketplace pages</p>
+</header>
+
+<main class="container">
+
+    <section class="welcome">
+        <h2>Welcome to Edesvino</h2>
+        <p>
+            Use this Control Centre to access the marketplace, manage products,
+            review seller applications, check platform commissions, and manage
+            withdrawal requests.
+        </p>
+    </section>
+
+    <h2 class="section-title">🏪 Marketplace</h2>
+
+    <div class="grid">
+
+        <div class="card">
+            <h3>Marketplace Home</h3>
+            <p>View products available for customers to purchase.</p>
+            <a class="button" href="index.html">Open Marketplace</a>
+        </div>
+
+        <div class="card">
+            <h3>Shopping Cart</h3>
+            <p>Open the shopping cart and review selected products.</p>
+            <a class="button" href="cart.html">Open Cart</a>
+        </div>
+
+        <div class="card">
+            <h3>Checkout</h3>
+            <p>Open the checkout page to enter delivery information and pay.</p>
+            <a class="button" href="checkout.html">Open Checkout</a>
+        </div>
+
+    </div>
+
+    <h2 class="section-title">👤 Customer Pages</h2>
+
+    <div class="grid">
+
+        <div class="card customer">
+            <h3>Customer Registration</h3>
+            <p>Register a customer account.</p>
+            <a class="button" href="customer-register.html">Register Customer</a>
+        </div>
+
+        <div class="card customer">
+            <h3>Customer Login</h3>
+            <p>Sign in to a customer account.</p>
+            <a class="button" href="customer-login.html">Customer Login</a>
+        </div>
+
+        <div class="card customer">
+            <h3>Customer Orders</h3>
+            <p>View customer order history and order details.</p>
+            <a class="button" href="customer-orders.html">View My Orders</a>
+        </div>
+
+    </div>
+
+    <h2 class="section-title">🛍️ Seller Management</h2>
+
+    <div class="grid">
+
+        <div class="card">
+            <h3>Seller Dashboard</h3>
+            <p>Manage products, review customer orders, and update order statuses.</p>
+            <a class="button" href="seller-dashboard.html">Open Seller Dashboard</a>
+        </div>
+
+        <div class="card">
+            <h3>Seller Registration</h3>
+            <p>Open the seller registration page.</p>
+            <a class="button" href="seller-register.html">Register as Seller</a>
+        </div>
+
+        <div class="card">
+            <h3>Seller Portal</h3>
+            <p>Access the seller portal.</p>
+            <a class="button" href="seller-portal.html">Open Seller Portal</a>
+        </div>
+
+        <div class="card admin">
+            <h3>Seller Applications</h3>
+            <p>Review and manage applications from people who want to become sellers.</p>
+            <a class="button" href="admin-dashboard.html">Open Admin Dashboard</a>
+        </div>
+
+        <div class="card admin">
+            <h3>Owner Seller Approvals</h3>
+            <p>Open the owner seller approval page.</p>
+            <a class="button" href="owner-seller-approvals.html">Open Seller Approvals</a>
+        </div>
+
+    </div>
+
+    <h2 class="section-title">💰 Platform Finance</h2>
+
+    <div class="grid">
+
+        <div class="card finance">
+            <h3>Platform Commissions</h3>
+            <p>Review commission records, total commissions, and seller earnings.</p>
+            <a class="button" href="commissions.html">Open Commissions</a>
+        </div>
+
+        <div class="card finance">
+            <h3>Seller Withdrawals</h3>
+            <p>Review withdrawal requests and manage their payment statuses.</p>
+            <a class="button" href="withdrawals.html">Open Withdrawals</a>
+        </div>
+
+    </div>
+
+    <div class="notice">
+        <strong>Important:</strong><br>
+        This Control Centre is a navigation page. It provides links to your
+        existing Edesvino pages; it does not replace them or bypass their
+        login and permission requirements. Some pages may require you to sign in.
+    </div>
+
+    <footer>
+        <p>© 2026 Edesvino Marketplace</p>
+        <p>Marketplace Control Centre</p>
+        <a href="index.html">Return to Marketplace Home</a>
+    </footer>
+
+</main>
+
+</body>
+</html>
