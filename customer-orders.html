@@ -1,12 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Orders | Edesvino Marketplace</title>
+
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -25,7 +27,9 @@
       box-shadow: 0 4px 18px rgba(0,0,0,.07);
     }
 
-    h1 { margin-top: 0; }
+    h1 {
+      margin-top: 0;
+    }
 
     .intro {
       color: #6b7280;
@@ -51,7 +55,9 @@
       line-height: 1.5;
     }
 
-    .item:last-child { border-bottom: 0; }
+    .item:last-child {
+      border-bottom: 0;
+    }
 
     .status {
       display: inline-block;
@@ -73,12 +79,29 @@
       color: white;
       font-size: 15px;
       cursor: pointer;
+      margin-top: 8px;
     }
 
-    a { color: #166534; }
-    .top-link { margin-bottom: 20px; }
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    a {
+      color: #166534;
+    }
+
+    .top-link {
+      margin-bottom: 20px;
+    }
+
+    .confirmation {
+      color: #166534;
+      line-height: 1.5;
+    }
   </style>
 </head>
+
 <body>
   <main>
     <div class="top-link">
@@ -86,6 +109,7 @@
     </div>
 
     <h1>My Orders</h1>
+
     <p class="intro">
       Welcome to your Edesvino order history.
     </p>
@@ -102,6 +126,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
     const SUPABASE_URL =
       "https://lxszilqypuglxyfyukdg.supabase.co";
@@ -120,13 +145,12 @@
       message.style.color = color;
     }
 
-    function showRetry() {
-      retryButton.hidden = false;
-    }
-
     function formatMoney(value) {
       const amount = Number(value);
-      if (!Number.isFinite(amount)) return "Amount unavailable";
+
+      if (!Number.isFinite(amount)) {
+        return "Amount unavailable";
+      }
 
       return amount.toLocaleString("en-NG", {
         style: "currency",
@@ -136,7 +160,9 @@
 
     try {
       if (!window.supabase) {
-        throw new Error("Supabase did not load. Check your internet connection.");
+        throw new Error(
+          "Supabase did not load. Check your internet connection."
+        );
       }
 
       client = window.supabase.createClient(
@@ -153,99 +179,163 @@
       );
     } catch (error) {
       showMessage("Setup error: " + error.message, "#b91c1c");
-      showRetry();
+      retryButton.hidden = false;
+    }
+
+    async function confirmDelivery(orderId, button, feedback) {
+      const originalText = button.textContent;
+
+      button.disabled = true;
+      button.textContent = "Confirming...";
+
+      feedback.textContent = "";
+
+      try {
+        const { data, error } = await client.rpc(
+          "confirm_order_delivery",
+          {
+            p_order_id: orderId
+          }
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        if (data && data.success === false) {
+          throw new Error(
+            data.message || "Delivery confirmation was unsuccessful."
+          );
+        }
+
+        feedback.textContent =
+          (data && data.message) ||
+          "Delivery confirmed successfully.";
+
+        feedback.style.color = "#166534";
+
+        await loadOrders();
+
+      } catch (error) {
+        feedback.textContent =
+          "Could not confirm delivery: " +
+          (error.message || "Please try again.");
+
+        feedback.style.color = "#b91c1c";
+
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     }
 
     async function loadOrders() {
       retryButton.hidden = true;
       ordersContainer.replaceChildren();
+
       showMessage("Checking your saved login session...");
 
       if (!client) {
-        showMessage("Supabase could not start. Please reload the page.", "#b91c1c");
-        showRetry();
+        showMessage(
+          "Supabase could not start. Please reload the page.",
+          "#b91c1c"
+        );
+
+        retryButton.hidden = false;
         return;
       }
 
       try {
-        const { data: sessionData, error: sessionError } =
-          await client.auth.getSession();
+        const {
+          data: sessionData,
+          error: sessionError
+        } = await client.auth.getSession();
 
         if (sessionError) {
-          throw new Error("Could not read saved session: " + sessionError.message);
+          throw new Error(
+            "Could not read saved session: " +
+            sessionError.message
+          );
         }
 
         let session = sessionData.session;
 
         if (!session) {
-          const { data: refreshed, error: refreshError } =
-            await client.auth.refreshSession();
+          const {
+            data: refreshed,
+            error: refreshError
+          } = await client.auth.refreshSession();
 
           if (refreshError) {
-            throw new Error("Please log in again. " + refreshError.message);
+            throw new Error(
+              "Please log in again. " + refreshError.message
+            );
           }
 
           session = refreshed.session;
         }
 
         if (!session || !session.user) {
-          showMessage("Please log in before viewing your orders.", "#b91c1c");
-          showRetry();
+          showMessage(
+            "Please log in before viewing your orders.",
+            "#b91c1c"
+          );
+
+          retryButton.hidden = false;
           return;
         }
 
         showMessage("Loading your orders...");
 
-        const { data: orders, error: ordersError } = await client
+        const {
+          data: orders,
+          error: ordersError
+        } = await client
           .from("orders")
-          .select("id, product_name, total_amount, status")
+          .select(
+            "id, product_name, total_amount, status, payment_status, delivery_confirmed_at, dispute_status"
+          )
           .eq("customer_id", session.user.id)
           .order("id", { ascending: false });
 
         if (ordersError) {
-          throw new Error("Could not load orders: " + ordersError.message);
+          throw new Error(
+            "Could not load orders: " + ordersError.message
+          );
         }
 
         if (!orders || orders.length === 0) {
-          showMessage("No orders are linked to this customer account yet.");
+          showMessage(
+            "No orders are linked to this customer account yet."
+          );
           return;
         }
 
-        // Fetch items only for orders belonging to the signed-in customer.
         const orderIds = orders.map(order => order.id);
 
-        const { data: items, error: itemsError } = await client
+        const {
+          data: items,
+          error: itemsError
+        } = await client
           .from("order_items")
-      
-      
           .select("order_id, product_name, price, quantity")
-
-
-
-          
-
-        
-           
-     .in("order_id", orderIds)
-     
-     console.log("Order IDs:", orderIds);
-  console.log("Order items result:", items, itemsError);
-        const itemsByOrder = {};
+          .in("order_id", orderIds);
 
         if (itemsError) {
-  throw new Error("Could not load order items: " + itemsError.message);
-}
+          throw new Error(
+            "Could not load order items: " + itemsError.message
+          );
+        }
 
-if (items) {
-          for (const item of items) {
-            const id = String(item.order_id);
+        const itemsByOrder = {};
 
-            if (!itemsByOrder[id]) {
-              itemsByOrder[id] = [];
-            }
+        for (const item of (items || [])) {
+          const id = String(item.order_id);
 
-            itemsByOrder[id].push(item);
+          if (!itemsByOrder[id]) {
+            itemsByOrder[id] = [];
           }
+
+          itemsByOrder[id].push(item);
         }
 
         for (const order of orders) {
@@ -279,40 +369,118 @@ if (items) {
               details.textContent =
                 "Quantity: " + quantity +
                 " × " + formatMoney(price);
+
               itemRow.appendChild(details);
 
               const subtotal = document.createElement("div");
               subtotal.textContent =
                 "Subtotal: " + formatMoney(price * quantity);
-              itemRow.appendChild(subtotal);
 
+              itemRow.appendChild(subtotal);
               card.appendChild(itemRow);
             }
           } else {
             const noItems = document.createElement("p");
-            noItems.textContent = itemsError
-              ? "Order items could not be loaded. Please check your order details later."
-              : "No individual items were found for this order.";
+            noItems.textContent =
+              "No individual items were found for this order.";
+
             card.appendChild(noItems);
           }
 
           const total = document.createElement("p");
-          total.textContent = "Order total: " + formatMoney(order.total_amount);
+          total.textContent =
+            "Order total: " + formatMoney(order.total_amount);
+
           card.appendChild(total);
 
           const status = document.createElement("p");
           status.className = "status";
-          status.textContent = "Status: " + (order.status || "Pending");
+          status.textContent =
+            "Status: " + (order.status || "Pending");
+
           card.appendChild(status);
+
+          const delivered =
+            String(order.status || "").trim().toLowerCase() === "delivered";
+
+          const paidStatuses = [
+            "success",
+            "successful",
+            "paid",
+            "completed"
+          ];
+
+          const paymentVerified = paidStatuses.includes(
+            String(order.payment_status || "").trim().toLowerCase()
+          );
+
+          const disputeStatus =
+            String(order.dispute_status || "none")
+              .trim()
+              .toLowerCase();
+
+          const hasDispute =
+            disputeStatus !== "" && disputeStatus !== "none";
+
+          if (order.delivery_confirmed_at) {
+            const confirmed = document.createElement("p");
+            confirmed.className = "confirmation";
+            confirmed.textContent =
+              "✓ You confirmed delivery of this order.";
+
+            card.appendChild(confirmed);
+
+          } else if (delivered && paymentVerified && !hasDispute) {
+            const explanation = document.createElement("p");
+            explanation.textContent =
+              "Have you received this order? Confirm only after you have received it.";
+
+            card.appendChild(explanation);
+
+            const feedback = document.createElement("p");
+            feedback.className = "message";
+            feedback.setAttribute("aria-live", "polite");
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = "Confirm Delivery";
+
+            button.addEventListener("click", () => {
+              const accepted = window.confirm(
+                "Have you received all items in Order #" +
+                order.id +
+                "? Confirm only if the order has arrived."
+              );
+
+              if (accepted) {
+                confirmDelivery(order.id, button, feedback);
+              }
+            });
+
+            card.appendChild(button);
+            card.appendChild(feedback);
+
+          } else if (delivered && !paymentVerified) {
+            const note = document.createElement("p");
+            note.textContent =
+              "Delivery confirmation is unavailable until payment is verified.";
+
+            card.appendChild(note);
+
+          } else if (delivered && hasDispute) {
+            const note = document.createElement("p");
+            note.textContent =
+              "Delivery confirmation is unavailable while this order has a dispute.";
+
+            card.appendChild(note);
+          }
 
           ordersContainer.appendChild(card);
         }
 
         showMessage(
-          itemsError
-            ? "Your orders loaded, but Supabase could not return the individual items."
-            : "Your orders and item details have loaded successfully.",
-          itemsError ? "#92400e" : "#166534"
+          "Your orders and item details have loaded successfully.",
+          "#166534"
         );
 
       } catch (error) {
@@ -321,11 +489,13 @@ if (items) {
           (error.message || "Please try again."),
           "#b91c1c"
         );
-        showRetry();
+
+        retryButton.hidden = false;
       }
     }
 
     retryButton.addEventListener("click", loadOrders);
+
     loadOrders();
   </script>
 </body>
