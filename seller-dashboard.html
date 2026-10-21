@@ -606,6 +606,7 @@ async function loadOrders(){
 
 /* UPDATE ORDER STATUS */
 
+
 async function updateOrderStatus(orderId){
 
   const select = document.getElementById("status-" + orderId);
@@ -642,11 +643,49 @@ async function updateOrderStatus(orderId){
       );
     }
 
+    const {data:currentOrder,error:currentOrderError} = await supabase
+      .from("orders")
+      .select("id,status,delivered_at")
+      .eq("id",orderId)
+      .maybeSingle();
+
+    if(currentOrderError) throw currentOrderError;
+
+    if(!currentOrder){
+      throw new Error("The order could not be found.");
+    }
+
+    const nextStatus = select.value;
+
+    const wasDelivered =
+      String(currentOrder.status || "").toLowerCase() === "delivered";
+
+    const willBeDelivered =
+      String(nextStatus).toLowerCase() === "delivered";
+
+    const updates = {
+      status: nextStatus
+    };
+
+    if(willBeDelivered && (!wasDelivered || !currentOrder.delivered_at)){
+
+      updates.delivered_at = new Date().toISOString();
+      updates.delivery_confirmed_at = null;
+      updates.payout_eligible_at = null;
+
+    }else if(!willBeDelivered && wasDelivered){
+
+      updates.delivered_at = null;
+      updates.delivery_confirmed_at = null;
+      updates.payout_eligible_at = null;
+
+    }
+
     const {data,error} = await supabase
       .from("orders")
-      .update({status:select.value})
+      .update(updates)
       .eq("id",orderId)
-      .select("id,status")
+      .select("id,status,delivered_at")
       .maybeSingle();
 
     if(error) throw error;
@@ -657,17 +696,38 @@ async function updateOrderStatus(orderId){
       );
     }
 
-    message(result,"Order status saved: " + data.status);
+    if(willBeDelivered && data.delivered_at){
+
+      message(
+        result,
+        "Order status saved: Delivered. Delivery time recorded."
+      );
+
+    }else{
+
+      message(
+        result,
+        "Order status saved: " + data.status
+      );
+
+    }
 
     await loadOrders();
 
   }catch(error){
-    message(result,"Could not update order: " + error.message);
+
+    message(
+      result,
+      "Could not update order: " + error.message
+    );
+
   }finally{
+
     button.disabled = false;
+
   }
 }
-
+      
 /* OWNER LOGIN */
 
 document.getElementById("loginForm")
