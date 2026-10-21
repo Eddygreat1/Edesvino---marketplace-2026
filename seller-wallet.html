@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Seller Wallet</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f3f6f4;color:#222;margin:0;padding:14px}
+main{max-width:850px;margin:auto}
+.card{background:#fff;padding:18px;margin-bottom:16px;border-radius:10px}
+h1,h2{margin-top:0}
+button{width:100%;padding:12px;margin:7px 0 12px;border:0;border-radius:6px;font-size:16px;background:#087443;color:#fff;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+.secondary{background:#374151}
+input{width:100%;padding:12px;margin:7px 0 12px;border:1px solid #ccc;border-radius:6px;font-size:16px}
+.summary{border:1px solid #ddd;border-radius:8px;padding:14px;margin:10px 0;overflow-wrap:anywhere}
+.amount{font-size:23px;font-weight:bold;color:#075e3b}
+.record{border:1px solid #ddd;border-radius:8px;padding:13px;margin:12px 0;overflow-wrap:anywhere}
+.notice{background:#eef5ff;padding:12px;border-radius:6px;line-height:1.5}
+.hidden{display:none}
+a{color:#087443}
+small{color:#555;line-height:1.5}
+</style>
+</head>
+
+<body>
+<main>
+
+<section class="card">
+<h1>Edesvino Seller Wallet</h1>
+<p>View your recorded seller earnings, available balance, and withdrawal history.</p>
+<a href="index.html">Back to Marketplace</a> ·
+<a href="withdrawals.html">Open Withdrawals</a>
+</section>
+
+<section class="card" id="loginCard">
+<h2>Account Login</h2>
+<p>Sign in with your existing Edesvino seller account.</p>
+
+<form id="loginForm">
+<label for="email">Email Address</label>
+<input id="email" type="email" autocomplete="username" required>
+
+<label for="password">Password</label>
+<input id="password" type="password" autocomplete="current-password" required>
+
+<button id="loginButton" type="submit">Log In</button>
+</form>
+
+<p id="loginMessage" role="status"></p>
+</section>
+
+<section id="dashboard" class="hidden">
+
+<section class="card">
+<h2>Account</h2>
+<p id="signedIn"></p>
+<button id="refreshButton" type="button">Refresh Wallet</button>
+<button id="logoutButton" type="button" class="secondary">Log Out</button>
+<p id="message" role="status"></p>
+</section>
+
+<section class="card">
+<h2>Wallet Summary</h2>
+
+<div class="summary">
+<p>Total Seller Earnings</p>
+<div class="amount" id="earnings">₦0.00</div>
+</div>
+
+<div class="summary">
+<p>Available Balance</p>
+<div class="amount" id="available">₦0.00</div>
+</div>
+
+<div class="summary">
+<p>Pending Withdrawals</p>
+<div class="amount" id="pending">₦0.00</div>
+<small>Includes requests with Pending or Approved status.</small>
+</div>
+
+<div class="summary">
+<p>Total Paid Withdrawals</p>
+<div class="amount" id="paid">₦0.00</div>
+</div>
+
+<p class="notice">
+Available balance is calculated from your recorded seller earnings
+minus paid withdrawals and Pending/Approved withdrawal requests.
+Rejected requests do not reduce the balance. This page displays
+records only; it does not transfer money or submit a withdrawal.
+</p>
+</section>
+
+<section class="card">
+<h2>Withdrawal History</h2>
+<div id="history">Loading withdrawal history...</div>
+</section>
+
+</section>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+const client = window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+const $ = id => document.getElementById(id);
+let currentUser = null;
+
+function money(value){
+const n = Number(value);
+return "₦" + (
+Number.isFinite(n) ? n : 0
+).toLocaleString("en-NG",{
+minimumFractionDigits:2,
+maximumFractionDigits:2
+});
+}
+
+function escapeHTML(value){
+return String(value ?? "").replace(/[&<>"']/g,c=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[c]));
+}
+
+function showMessage(id,text){
+$(id).textContent = text;
+}
+
+function busy(button,on,label){
+if(on){
+button.dataset.originalText = button.textContent;
+button.textContent = label;
+button.disabled = true;
+}else{
+button.textContent = button.dataset.originalText || label;
+button.disabled = false;
+}
+}
+
+function showDashboard(user){
+currentUser = user;
+
+$("loginCard").classList.add("hidden");
+$("dashboard").classList.remove("hidden");
+
+$("signedIn").textContent =
+"Signed in as " + (user.email || "your Edesvino account");
+
+loadWallet();
+}
+
+async function loadWallet(){
+
+$("history").textContent = "Loading wallet records...";
+showMessage("message","");
+
+const [commissionResult,withdrawalResult] = await Promise.all([
+
+client
+.from("platform_commissions")
+.select("id,order_id,seller_id,seller_amount,commission_amount,created_at")
+.eq("seller_id",currentUser.id)
+.order("id",{ascending:false}),
+
+client
+.from("withdrawals")
+.select("id,seller_id,amount,status,created_at")
+.eq("seller_id",currentUser.id)
+.order("created_at",{ascending:false})
+
+]);
+
+if(commissionResult.error){
+
+$("history").textContent =
+"Could not load seller earnings: " +
+commissionResult.error.message;
+
+$("earnings").textContent = "Unavailable";
+$("available").textContent = "Unavailable";
+$("pending").textContent = "Unavailable";
+$("paid").textContent = "Unavailable";
+
+showMessage(
+"message",
+"Wallet totals could not be calculated. Check table permissions and try again."
+);
+
+return;
+}
+
+if(withdrawalResult.error){
+
+$("history").textContent =
+"Could not load withdrawal history: " +
+withdrawalResult.error.message;
+
+$("earnings").textContent = "Unavailable";
+$("available").textContent = "Unavailable";
+$("pending").textContent = "Unavailable";
+$("paid").textContent = "Unavailable";
+
+showMessage(
+"message",
+"Withdrawal records could not be loaded. No balance estimate is shown."
+);
+
+return;
+}
+
+const commissions = commissionResult.data || [];
+const withdrawals = withdrawalResult.data || [];
+
+const totalEarnings = commissions.reduce(
+(sum,row) => sum + Number(row.seller_amount || 0),
+0
+);
+
+const paid = withdrawals
+.filter(row => String(row.status || "").toLowerCase() === "paid")
+.reduce((sum,row) => sum + Number(row.amount || 0),0);
+
+const reserved = withdrawals
+.filter(row =>
+["pending","approved"].includes(
+String(row.status || "").toLowerCase()
+)
+)
+.reduce((sum,row) => sum + Number(row.amount || 0),0);
+
+const available = totalEarnings - paid - reserved;
+
+$("earnings").textContent = money(totalEarnings);
+$("available").textContent = money(Math.max(0,available));
+$("pending").textContent = money(reserved);
+$("paid").textContent = money(paid);
+
+if(available < 0){
+
+showMessage(
+"message",
+"Warning: withdrawal records exceed recorded seller earnings by " +
+money(Math.abs(available)) +
+". Please review the records before approving another withdrawal."
+);
+
+}else{
+
+showMessage("message","Wallet refresh completed.");
+
+}
+
+if(!withdrawals.length){
+
+$("history").textContent =
+"You have no withdrawal requests yet. Use the Withdrawals page to submit a request.";
+
+return;
+}
+
+$("history").innerHTML = withdrawals.map(row=>{
+
+const date = row.created_at
+? new Date(row.created_at).toLocaleString()
+: "Date unavailable";
+
+return `
+<div class="record">
+<p><strong>Withdrawal ID:</strong> ${escapeHTML(row.id)}</p>
+<p><strong>Amount:</strong> ${money(row.amount)}</p>
+<p><strong>Status:</strong> ${escapeHTML(row.status || "Pending")}</p>
+<p><strong>Date:</strong> ${escapeHTML(date)}</p>
+</div>
+`;
+
+}).join("");
+
+}
+
+$("loginForm").addEventListener("submit",async function(event){
+
+event.preventDefault();
+
+const button = $("loginButton");
+
+busy(button,true,"Signing in...");
+showMessage("loginMessage","");
+
+try{
+
+const {data,error} = await client.auth.signInWithPassword({
+email:$("email").value.trim(),
+password:$("password").value
+});
+
+if(error) throw error;
+
+if(!data.user){
+throw new Error("Could not identify the signed-in account.");
+}
+
+showDashboard(data.user);
+
+}catch(error){
+
+showMessage(
+"loginMessage",
+"Login failed: " + (error.message || "Please try again.")
+);
+
+}finally{
+
+busy(button,false,"Log In");
+
+}
+
+});
+
+$("refreshButton").addEventListener("click",async function(){
+
+const button = $("refreshButton");
+
+busy(button,true,"Refreshing...");
+
+try{
+
+await loadWallet();
+
+}catch(error){
+
+showMessage(
+"message",
+"Refresh failed: " + (error.message || "Please try again.")
+);
+
+}finally{
+
+busy(button,false,"Refresh Wallet");
+
+}
+
+});
+
+$("logoutButton").addEventListener("click",async function(){
+
+await client.auth.signOut();
+
+currentUser = null;
+
+$("dashboard").classList.add("hidden");
+$("loginCard").classList.remove("hidden");
+$("password").value = "";
+
+showMessage("loginMessage","You have logged out.");
+
+});
+
+async function restoreSession(){
+
+const {data,error} = await client.auth.getSession();
+
+if(error){
+
+showMessage(
+"loginMessage",
+"Could not restore session: " + error.message
+);
+
+return;
+}
+
+if(data.session && data.session.user){
+showDashboard(data.session.user);
+}
+
+}
+
+restoreSession();
+
+})();
+</script>
+
+</body>
+</html>
