@@ -65,9 +65,15 @@ small{color:#555}
 <h2>Request a Withdrawal</h2>
 <p>Enter your bank details and the amount you want to withdraw.</p>
 
+<div class="notice">
+Your request will be checked against your recorded seller earnings.
+Existing Paid withdrawals and Pending or Approved requests are deducted
+when calculating the available balance.
+</div>
+
 <form id="withdrawalForm">
 <label>Amount (₦)</label>
-<input id="amount" type="number" min="1" step="0.01" required>
+<input id="amount" type="number" min="0.01" step="0.01" required>
 
 <label>Bank Name</label>
 <input id="bankName" type="text" maxlength="100" required>
@@ -140,6 +146,7 @@ $(id).textContent = text;
 
 function setBusy(button,busy,label){
 button.disabled = busy;
+
 if(busy){
 button.dataset.originalText = button.textContent;
 button.textContent = label;
@@ -182,7 +189,7 @@ const {data,error} = await query;
 if(error){
 $("requests").textContent =
 "Could not load withdrawal requests: " + error.message;
-return;
+throw error;
 }
 
 if(!data || data.length === 0){
@@ -239,20 +246,21 @@ const button = $("loginButton");
 setBusy(button,true,"Signing in...");
 showMessage("loginMessage","");
 
+try{
 const {data,error} = await client.auth.signInWithPassword({
 email:$("email").value.trim(),
 password:$("password").value
 });
 
-setBusy(button,false,"Log In");
-
-if(error){
-showMessage("loginMessage","Login failed: " + error.message);
-return;
-}
+if(error) throw error;
 
 if(data.user){
 showDashboard(data.user);
+}
+}catch(error){
+showMessage("loginMessage","Login failed: " + error.message);
+}finally{
+setBusy(button,false,"Log In");
 }
 });
 
@@ -280,33 +288,49 @@ return;
 }
 
 const button = $("submitButton");
-setBusy(button,true,"Submitting request...");
-showMessage("requestMessage","");
+setBusy(button,true,"Checking balance...");
+showMessage("requestMessage","Checking your available balance and submitting your request...");
 
-const {error} = await client
-.from("withdrawals")
-.insert([{
-seller_id:currentUser.id,
-amount:amount,
-status:"Pending",
-bank_name:bankName,
-account_name:accountName,
-account_number:accountNumber
-}]);
-
-setBusy(button,false,"Submit Withdrawal Request");
-
-if(error){
-showMessage("requestMessage",
-"Request could not be submitted: " + error.message);
-return;
+try{
+const {data,error} = await client.rpc(
+"request_seller_withdrawal",
+{
+p_amount:amount,
+p_bank_name:bankName,
+p_account_name:accountName,
+p_account_number:accountNumber
 }
+);
+
+if(error) throw error;
 
 $("withdrawalForm").reset();
-showMessage("requestMessage",
-"Withdrawal request submitted successfully. It is awaiting review.");
+
+let successMessage =
+"Withdrawal request submitted successfully. It is awaiting review.";
+
+if(data && data.withdrawal_id){
+successMessage += " Withdrawal ID: " + data.withdrawal_id + ".";
+}
+
+if(data && data.available_balance !== undefined){
+successMessage += " Remaining available balance: " +
+money(data.available_balance) + ".";
+}
+
+showMessage("requestMessage",successMessage);
 
 await loadRequests();
+
+}catch(error){
+showMessage(
+"requestMessage",
+"Request could not be submitted: " +
+(error.message || "Please try again.")
+);
+}finally{
+setBusy(button,false,"Submit Withdrawal Request");
+}
 });
 
 $("requests").addEventListener("click",async function(event){
@@ -329,64 +353,78 @@ return;
 button.disabled = true;
 button.textContent = "Saving...";
 
+try{
 const {error} = await client
 .from("withdrawals")
 .update({status:status})
 .eq("id",id);
 
-button.disabled = false;
-button.textContent = "Save Status";
-
-if(error){
-showMessage("message","Status update failed: " + error.message);
-return;
-}
+if(error) throw error;
 
 showMessage("message","Withdrawal status updated successfully.");
 await loadRequests();
+
+}catch(error){
+showMessage("message","Status update failed: " + error.message);
+}finally{
+button.disabled = false;
+button.textContent = "Save Status";
+}
 });
 
-$("refreshButton").addEventListener("click", async function () {
-  const button = $("refreshButton");
+$("refreshButton").addEventListener("click",async function(){
+const button = $("refreshButton");
 
-  button.disabled = true;
-  button.textContent = "Refreshing...";
-  showMessage("message", "Refreshing withdrawal records...");
+button.disabled = true;
+button.textContent = "Refreshing...";
+showMessage("message","Refreshing withdrawal records...");
 
-  try {
-    await loadRequests();
-    showMessage("message", "Withdrawal refresh completed.");
-  } catch (error) {
-    showMessage(
-      "message",
-      "Refresh failed: " + (error.message || "Please try again.")
-    );
-  } finally {
-    button.disabled = false;
-    button.textContent = "Refresh Withdrawals";
-  }
+try{
+await loadRequests();
+showMessage("message","Withdrawal refresh completed.");
+}catch(error){
+showMessage(
+"message",
+"Refresh failed: " + (error.message || "Please try again.")
+);
+}finally{
+button.disabled = false;
+button.textContent = "Refresh Withdrawals";
+}
 });
 
 $("logoutButton").addEventListener("click",async function(){
-await client.auth.signOut();
+const {error} = await client.auth.signOut();
+
+if(error){
+showMessage("message","Logout failed: " + error.message);
+return;
+}
+
 currentUser = null;
 isOwner = false;
+
 $("dashboard").classList.add("hidden");
 $("loginCard").classList.remove("hidden");
 $("password").value = "";
+
 showMessage("loginMessage","You have logged out.");
 });
 
 async function restoreSession(){
+try{
 const {data,error} = await client.auth.getSession();
 
-if(error){
-showMessage("loginMessage","Could not restore session: " + error.message);
-return;
-}
+if(error) throw error;
 
 if(data.session && data.session.user){
 showDashboard(data.session.user);
+}
+}catch(error){
+showMessage(
+"loginMessage",
+"Could not restore session: " + error.message
+);
 }
 }
 
