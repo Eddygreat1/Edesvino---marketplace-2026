@@ -267,10 +267,11 @@ setBusy(button,false,"Log In");
 $("withdrawalForm").addEventListener("submit",async function(event){
 event.preventDefault();
 
-if(!currentUser || isOwner){
-showMessage("requestMessage","Please sign in with your seller account.");
+if(!currentUser){
+showMessage("requestMessage","Please sign in to request a withdrawal.");
 return;
 }
+
 
 const amount = Number($("amount").value);
 const bankName = $("bankName").value.trim();
