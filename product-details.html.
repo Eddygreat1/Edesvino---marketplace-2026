@@ -4,12 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111827">
-  <title>Product Details | Edesvino Marketplace">
+  <title>Product Details | Edesvino Marketplace</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -22,23 +20,21 @@
       background: #111827;
       color: white;
       text-align: center;
-      padding: 22px 16px;
+      padding: 22px 14px;
     }
 
-    header h1 {
-      margin: 0 0 7px;
-    }
+    header h1 { margin: 0 0 8px; }
 
-    .container {
+    main {
       max-width: 900px;
       margin: auto;
-      padding: 20px 14px 35px;
+      padding: 18px 14px 35px;
     }
 
     .panel {
       background: white;
-      border-radius: 12px;
       padding: 18px;
+      border-radius: 12px;
       box-shadow: 0 2px 8px #00000010;
     }
 
@@ -52,35 +48,23 @@
 
     .product {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-columns: 1fr 1fr;
       gap: 22px;
-      align-items: start;
     }
 
     .product-image {
       width: 100%;
-      min-height: 220px;
-      max-height: 420px;
+      max-height: 380px;
+      min-height: 180px;
       object-fit: contain;
-      background: #fff;
       border-radius: 8px;
-    }
-
-    h2 {
-      margin-top: 0;
-      overflow-wrap: anywhere;
+      background: #f9fafb;
     }
 
     .price {
       color: #047857;
       font-size: 26px;
       font-weight: bold;
-      margin: 12px 0;
-    }
-
-    .muted {
-      color: #6b7280;
-      font-size: 14px;
     }
 
     .description {
@@ -89,77 +73,64 @@
       overflow-wrap: anywhere;
     }
 
+    .muted { color: #6b7280; }
+
     label {
       display: block;
-      font-weight: bold;
       margin: 18px 0 7px;
+      font-weight: bold;
     }
 
     input {
       width: 100%;
       max-width: 120px;
       padding: 11px;
+      font-size: 16px;
       border: 1px solid #d1d5db;
       border-radius: 7px;
-      font-size: 16px;
     }
 
-    button,
-    .button {
+    button, .button {
       display: block;
       width: 100%;
+      padding: 13px;
+      margin-top: 12px;
       border: 0;
       border-radius: 7px;
-      padding: 13px 14px;
-      margin-top: 12px;
       background: #111827;
       color: white;
-      font-size: 15px;
       font-weight: bold;
+      font-size: 15px;
       text-align: center;
       text-decoration: none;
       cursor: pointer;
     }
 
-    .secondary {
-      background: #047857;
-    }
+    .green { background: #047857; }
 
-    .message {
-      min-height: 22px;
-      margin-top: 14px;
+    #message {
+      margin-top: 15px;
       line-height: 1.5;
+      overflow-wrap: anywhere;
     }
 
-    .error {
-      color: #b91c1c;
-    }
-
-    .success {
-      color: #047857;
-    }
+    .error { color: #b91c1c; }
+    .success { color: #047857; }
 
     @media (max-width: 650px) {
-      .product {
-        grid-template-columns: 1fr;
-      }
-
-      .product-image {
-        max-height: 320px;
-      }
+      .product { grid-template-columns: 1fr; }
+      .product-image { max-height: 300px; }
     }
   </style>
 </head>
 
 <body>
-
   <header>
     <h1>Edesvino Marketplace</h1>
     <p>Product Details</p>
   </header>
 
-  <main class="container">
-
+  <main>
     <a class="back" href="./index.html">
       ← Back to Marketplace
     </a>
@@ -168,11 +139,7 @@
       Loading product details...
     </section>
 
-    <p id="message"
-       class="message"
-       role="status"
-       aria-live="polite"></p>
-
+    <p id="message" role="status" aria-live="polite"></p>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -181,7 +148,7 @@
     const SUPABASE_URL =
       "https://lxszilqypuglxyfyukdg.supabase.co";
 
-    const SUPABASE_PUBLISHABLE_KEY =
+    const SUPABASE_KEY =
       "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
     const CART_KEY = "edesvinoMarketplaceCart";
@@ -189,7 +156,7 @@
     const statusBox = document.getElementById("status");
     const messageBox = document.getElementById("message");
 
-    function safeText(value) {
+    function escapeHTML(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;",
         "<": "&lt;",
@@ -199,19 +166,7 @@
       })[char]);
     }
 
-    function validImageUrl(value) {
-      try {
-        const url = new URL(value);
-
-        return ["https:", "http:"].includes(url.protocol)
-          ? url.href
-          : "";
-      } catch {
-        return "";
-      }
-    }
-
-    function money(value) {
+    function formatMoney(value) {
       const amount = Number(value);
 
       return Number.isFinite(amount)
@@ -219,59 +174,42 @@
         : "Price unavailable";
     }
 
-    function readCart() {
+    function getCart() {
       try {
         const cart = JSON.parse(
           localStorage.getItem(CART_KEY) || "[]"
         );
 
-        if (!Array.isArray(cart)) return [];
-
-        return cart.filter(item =>
-          item &&
-          item.id !== undefined &&
-          typeof item.name === "string" &&
-          Number.isFinite(Number(item.price)) &&
-          Number(item.price) >= 0 &&
-          Number.isInteger(Number(item.quantity)) &&
-          Number(item.quantity) > 0
-        ).map(item => ({
-          id: String(item.id),
-          name: item.name,
-          price: Number(item.price),
-          quantity: Number(item.quantity)
-        }));
-
+        return Array.isArray(cart) ? cart : [];
       } catch {
         return [];
       }
     }
 
     function addToCart(product, quantity) {
-      const id = String(product.id ?? "");
-      const name = String(product.name ?? "").trim();
+      const id = String(product.id);
+      const name = String(product.name || "").trim();
       const price = Number(product.price);
 
-      if (!id || !name ||
-          !Number.isFinite(price) || price < 0) {
-
-        messageBox.className = "message error";
-
+      if (!name || !Number.isFinite(price) || price < 0) {
+        messageBox.className = "error";
         messageBox.textContent =
-          "This product has incomplete information and could not be added.";
-
+          "This product has invalid information.";
         return;
       }
 
-      const cart = readCart();
+      const cart = getCart();
 
-      const existing = cart.find(item => item.id === id);
+      const existing = cart.find(
+        item => String(item.id) === id
+      );
 
       if (existing) {
-        existing.quantity += quantity;
+        existing.quantity =
+          Number(existing.quantity || 0) + quantity;
       } else {
         cart.push({
-          id: id,
+          id: product.id,
           name: name,
           price: price,
           quantity: quantity
@@ -284,70 +222,69 @@
           JSON.stringify(cart)
         );
 
-        messageBox.className = "message success";
-
+        messageBox.className = "success";
         messageBox.textContent =
-          name + " (quantity " + quantity +
-          ") added to your cart.";
-
+          name + " added to your shopping cart.";
       } catch {
-        messageBox.className = "message error";
-
+        messageBox.className = "error";
         messageBox.textContent =
-          "Could not save your cart on this device. Check your browser settings.";
+          "Could not save your cart. Please check your browser settings.";
       }
     }
 
     function showProduct(product) {
-      const imageUrl = validImageUrl(product.image_url);
+      let imageHTML = "";
 
-      const storeName =
-        product.store_name || product.store || "";
+      if (product.image_url) {
+        try {
+          const imageURL = new URL(product.image_url);
+
+          if (
+            imageURL.protocol === "https:" ||
+            imageURL.protocol === "http:"
+          ) {
+            imageHTML =
+              '<img class="product-image" src="' +
+              escapeHTML(imageURL.href) +
+              '" alt="' +
+              escapeHTML(product.name) +
+              '">';
+          }
+        } catch {}
+      }
+
+      if (!imageHTML) {
+        imageHTML =
+          '<div class="product-image">No product image available</div>';
+      }
+
+      const store = product.store_name || product.store || "";
 
       statusBox.innerHTML = `
         <article class="product">
+          <div>${imageHTML}</div>
 
           <div>
-            ${
-              imageUrl
-                ? `<img
-                     class="product-image"
-                     src="${safeText(imageUrl)}"
-                     alt="${safeText(product.name)}">`
-                : `<div
-                     class="product-image"
-                     role="img"
-                     aria-label="No product image available">
-                   </div>`
-            }
-          </div>
-
-          <div>
-
-            <h2>
-              ${safeText(product.name || "Unnamed product")}
-            </h2>
+            <h2>${escapeHTML(product.name || "Product")}</h2>
 
             <p class="price">
-              ${money(product.price)}
+              ${formatMoney(product.price)}
             </p>
 
             ${
-              storeName
-                ? `<p class="muted">
-                     Store: ${safeText(storeName)}
-                   </p>`
+              store
+                ? `<p class="muted">Store: ${escapeHTML(store)}</p>`
                 : ""
             }
 
             <h3>Product description</h3>
 
-            <p class="description">
-              ${safeText(
+            <p class="description">${
+              escapeHTML(
                 product.description ||
-                "No description has been provided for this product yet."
-              )}
-            </p>
+                "No description is available for this product."
+              )
+            }</p>
 
             <label for="quantity">Quantity</label>
 
@@ -360,10 +297,7 @@
               value="1"
               inputmode="numeric">
 
-            <button
-              type="button"
-              id="addButton"
-              class="secondary">
+            <button id="addButton" class="green" type="button">
               Add to Cart
             </button>
 
@@ -374,71 +308,58 @@
             <a class="button" href="./index.html">
               Continue Shopping
             </a>
-
           </div>
-
         </article>
       `;
 
-      document
-        .getElementById("addButton")
-        .addEventListener("click", () => {
+      document.getElementById("addButton").onclick = () => {
+        const quantity = Number(
+          document.getElementById("quantity").value
+        );
 
-          const quantityInput =
-            document.getElementById("quantity");
+        if (
+          !Number.isInteger(quantity) ||
+          quantity < 1 ||
+          quantity > 99
+        ) {
+          messageBox.className = "error";
+          messageBox.textContent =
+            "Enter a quantity from 1 to 99.";
+          return;
+        }
 
-          const quantity = Number(quantityInput.value);
-
-          if (
-            !Number.isInteger(quantity) ||
-            quantity < 1 ||
-            quantity > 99
-          ) {
-            messageBox.className = "message error";
-
-            messageBox.textContent =
-              "Please enter a quantity from 1 to 99.";
-
-            return;
-          }
-
-          addToCart(product, quantity);
-        });
+        addToCart(product, quantity);
+      };
     }
 
     async function loadProduct() {
-      const id =
-        new URLSearchParams(window.location.search).get("id");
+      const params = new URLSearchParams(
+        window.location.search
+      );
+
+      const id = params.get("id");
 
       if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
-
         statusBox.innerHTML = `
-          <h2>Product not selected</h2>
-
-          <p>
-            Open the marketplace and choose a product
-            to view its details.
-          </p>
-
-          <a class="button" href="./index.html">
+          <h2>No product selected</h2>
+          <p>Please return to the marketplace and select a product.</p>
+          <a class="button green" href="./index.html">
             Browse Marketplace
           </a>
         `;
-
         return;
       }
 
       if (!window.supabase) {
         statusBox.textContent =
-          "The connection library could not load. Check your internet connection and try again.";
-
+          "Unable to connect. Check your internet connection and reload.";
         return;
       }
 
       try {
         const client = window.supabase.createClient(
           SUPABASE_URL,
-          SUPABASE_PUBLISHABLE_KEY
+          SUPABASE_KEY
         );
 
         const { data, error } = await client
@@ -452,34 +373,25 @@
         if (!data) {
           statusBox.innerHTML = `
             <h2>Product not found</h2>
-
-            <p>
-              This product may no longer be available.
-            </p>
-
-            <a class="button" href="./index.html">
+            <p>This product may no longer be available.</p>
+            <a class="button green" href="./index.html">
               Browse Marketplace
             </a>
           `;
-
           return;
         }
 
         showProduct(data);
 
       } catch (error) {
-        console.error(
-          "Product details loading error:",
-          error
-        );
+        console.error("Product details error:", error);
 
         statusBox.textContent =
-          "Product details could not be loaded. Please return to the marketplace and try again.";
+          "Could not load product details. Please try again later.";
       }
     }
 
     loadProduct();
   </script>
-
 </body>
 </html>
