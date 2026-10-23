@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Order Tracking</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f3f6f4;
+  color: #222;
+  margin: 0;
+  padding: 15px;
+}
+
+.container {
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+header {
+  background: #075e36;
+  color: white;
+  padding: 22px 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: 25px;
+}
+
+header p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.card {
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+h2 {
+  font-size: 19px;
+  margin-top: 0;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #ccc;
+  border-radius: 7px;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+button, .button {
+  display: inline-block;
+  background: #087443;
+  color: white;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 7px;
+  font-size: 15px;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.secondary {
+  background: #34495e;
+}
+
+.status {
+  display: inline-block;
+  padding: 7px 11px;
+  border-radius: 20px;
+  background: #e8f5e9;
+  color: #176b35;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.detail {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  overflow-wrap: anywhere;
+}
+
+.detail:last-child {
+  border-bottom: none;
+}
+
+.detail strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.product {
+  padding: 12px;
+  background: #f7f9f7;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.message {
+  padding: 12px;
+  border-radius: 7px;
+  margin-top: 12px;
+  display: none;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  background: #ffebee;
+  color: #b71c1c;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.muted {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+footer {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  padding: 15px 0;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<header>
+  <h1>Edesvino Order Tracking</h1>
+  <p>Check the status of your marketplace order.</p>
+</header>
+
+<div class="card">
+  <div class="links">
+    <a class="button secondary"
+       href="index.html">Back to Marketplace</a>
+
+    <a class="button secondary"
+       href="customer-orders.html">My Orders</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Track Your Order</h2>
+
+  <p class="muted">
+    Sign in with the customer account used to place your order.
+    Enter your order number below to see its current status.
+  </p>
+
+  <div id="accountInfo" class="muted">Checking your account...</div>
+
+  <form id="trackingForm">
+    <label for="orderId">Order Number</label>
+    <input
+      type="number"
+      id="orderId"
+      min="1"
+      step="1"
+      placeholder="Enter your order number"
+      required
+    >
+
+    <button type="submit" id="trackButton">
+      Track Order
+    </button>
+  </form>
+
+  <div id="message" class="message"></div>
+</div>
+
+<div id="result"></div>
+
+<footer>
+  Edesvino Marketplace · Order Tracking
+</footer>
+
+</div>
+
+<script>
+const SUPABASE_URL =
+  "https://lxszilqypuglxyfyukdg.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+let currentUser = null;
+
+const accountInfo = document.getElementById("accountInfo");
+const trackingForm = document.getElementById("trackingForm");
+const trackButton = document.getElementById("trackButton");
+const messageBox = document.getElementById("message");
+const resultBox = document.getElementById("result");
+
+function showMessage(message, type) {
+  messageBox.textContent = message;
+  messageBox.className = "message " + type;
+  messageBox.style.display = "block";
+}
+
+function clearMessage() {
+  messageBox.textContent = "";
+  messageBox.style.display = "none";
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, function(char) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[char];
+  });
+}
+
+function formatMoney(amount) {
+  const number = Number(amount);
+
+  if (!Number.isFinite(number)) {
+    return "Not available";
+  }
+
+  return "₦" + number.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatDate(value) {
+  if (!value) return "Not available";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return date.toLocaleString();
+}
+
+function readableStatus(value) {
+  if (!value) return "Pending";
+
+  return String(value)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, function(letter) {
+      return letter.toUpperCase();
+    });
+}
+
+async function checkAccount() {
+  const { data, error } = await supabaseClient.auth.getSession();
+
+  if (error) {
+    accountInfo.textContent =
+      "Unable to check your account. Please refresh the page.";
+    return;
+  }
+
+  currentUser = data.session ? data.session.user : null;
+
+  if (currentUser) {
+    accountInfo.textContent =
+      "Signed in as " + (currentUser.email || "customer account");
+  } else {
+    accountInfo.innerHTML =
+      'You are not signed in. Please use your customer account. ' +
+      '<a href="customer-login.html">Customer Login</a>';
+
+    trackingForm.style.display = "none";
+  }
+}
+
+trackingForm.addEventListener("submit", async function(event) {
+  event.preventDefault();
+
+  clearMessage();
+  resultBox.innerHTML = "";
+
+  if (!currentUser) {
+    showMessage(
+      "Please sign in with the customer account used to place this order.",
+      "error"
+    );
+    return;
+  }
+
+  const orderId = Number(
+    document.getElementById("orderId").value
+  );
+
+  if (!Number.isSafeInteger(orderId) || orderId < 1) {
+    showMessage("Enter a valid order number.", "error");
+    return;
+  }
+
+  trackButton.disabled = true;
+  trackButton.textContent = "Checking Order...";
+
+  try {
+    /*
+      Customers can only retrieve orders belonging to
+      their own signed-in account.
+    */
+    const { data: order, error: orderError } =
+      await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .eq("customer_id", currentUser.id)
+        .maybeSingle();
+
+    if (orderError) throw orderError;
+
+    if (!order) {
+      showMessage(
+        "No order was found for that number under your account. " +
+        "Check the number or sign in with the correct customer account.",
+        "error"
+      );
+      return;
+    }
+
+    let items = [];
+
+    const { data: orderItems, error: itemsError } =
+      await supabaseClient
+        .from("order_items")
+        .select("*")
+        .eq("order_id", order.id);
+
+    if (itemsError) {
+      console.warn("Could not load order items:", itemsError.message);
+    } else {
+      items = orderItems || [];
+    }
+
+    const status = readableStatus(order.status);
+    const paymentStatus = readableStatus(order.payment_status);
+
+    const total =
+      order.total_amount !== null &&
+      order.total_amount !== undefined
+        ? order.total_amount
+        : order.price;
+
+    let html = `
+      <div class="card">
+        <h2>Order #${escapeHTML(order.id)}</h2>
+
+        <div class="detail">
+          <strong>Order Status</strong>
+          <span class="status">${escapeHTML(status)}</span>
+        </div>
+
+        <div class="detail">
+          <strong>Payment Status</strong>
+          ${escapeHTML(paymentStatus)}
+        </div>
+
+        <div class="detail">
+          <strong>Order Total</strong>
+          ${escapeHTML(formatMoney(total))}
+        </div>
+
+        <div class="detail">
+          <strong>Order Date</strong>
+          ${escapeHTML(formatDate(order.created_at))}
+        </div>
+    `;
+
+    if (order.product_name) {
+      html += `
+        <div class="detail">
+          <strong>Product</strong>
+          ${escapeHTML(order.product_name)}
+        </div>
+      `;
+    }
+
+    if (order.delivery_address) {
+      html += `
+        <div class="detail">
+          <strong>Delivery Address</strong>
+          ${escapeHTML(order.delivery_address)}
+        </div>
+      `;
+    }
+
+    if (order.delivered_at) {
+      html += `
+        <div class="detail">
+          <strong>Marked Delivered</strong>
+          ${escapeHTML(formatDate(order.delivered_at))}
+        </div>
+      `;
+    }
+
+    if (order.delivery_confirmed_at) {
+      html += `
+        <div class="detail">
+          <strong>Delivery Confirmed</strong>
+          ${escapeHTML(formatDate(order.delivery_confirmed_at))}
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+
+    if (items.length > 0) {
+      html += `
+        <div class="card">
+          <h2>Items in This Order</h2>
+      `;
+
+      items.forEach(function(item) {
+        html += `
+          <div class="product">
+            <strong>${escapeHTML(item.product_name || "Product")}</strong>
+            <div>Quantity: ${escapeHTML(item.quantity ?? 1)}</div>
+            <div>Price: ${escapeHTML(formatMoney(item.price))}</div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+    }
+
+    html += `
+      <div class="card">
+        <h2>What does your status mean?</h2>
+        <p class="muted">
+          <strong>Pending:</strong> The order is awaiting processing.
+          <br>
+          <strong>Confirmed:</strong> The order has been confirmed.
+          <br>
+          <strong>Delivered:</strong> The order has been marked as delivered.
+        </p>
+
+        <a class="button" href="customer-orders.html">
+          View My Orders
+        </a>
+      </div>
+    `;
+
+    resultBox.innerHTML = html;
+
+    showMessage("Order information loaded successfully.", "success");
+
+  } catch (error) {
+    console.error("Order tracking error:", error);
+
+    showMessage(
+      "Unable to load this order right now. Please try again. " +
+      (error.message || ""),
+      "error"
+    );
+  } finally {
+    trackButton.disabled = false;
+    trackButton.textContent = "Track Order";
+  }
+});
+
+checkAccount();
+</script>
+
+</body>
+</html>
