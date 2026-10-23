@@ -163,7 +163,7 @@ $("loginCard").classList.add("hidden");
 $("dashboard").classList.remove("hidden");
 $("signedIn").textContent = "Signed in as " + user.email;
 
-$("sellerPanel").classList.toggle("hidden",isOwner);
+$("sellerPanel").classList.remove("hidden");
 $("listHeading").textContent = isOwner
 ? "All Seller Withdrawal Requests"
 : "My Withdrawal Requests";
