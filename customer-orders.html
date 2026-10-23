@@ -262,30 +262,29 @@
 
         let session = sessionData.session;
 
-        if (!session) {
-          const {
-            data: refreshed,
-            error: refreshError
-          } = await client.auth.refreshSession();
+       if (!session) {
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
-          if (refreshError) {
-            throw new Error(
-              "Please log in again. " + refreshError.message
-            );
-          }
+  const { data: retryData, error: retryError } =
+    await client.auth.getSession();
 
-          session = refreshed.session;
-        }
+  if (retryError) {
+    throw new Error(
+      "Could not check your login. Please reload and try again."
+    );
+  }
+
+  session = retryData.session;
+} 
+                
 
         if (!session || !session.user) {
           showMessage(
             "Please log in before viewing your orders.",
-            "#b91c1c"
+            "#b
           );
 
-          retryButton.hidden = false;
-          return;
-        }
+          retryButton.hid        }
 
         showMessage("Loading your orders...");
 
