@@ -459,11 +459,8 @@ async function loadOrders(){
 
     const {data:orders,error:orderError} = await supabase
       .from("orders")
-      .select("id,product_name,customer_name,customer_phone,delivery_address,status,total_amount")
-      .in("id",orderIds)
-      .order("id",{ascending:false});
-
-    if(orderError) throw orderError;
+    .select("id,product_name,customer_name,customer_phone,delivery_address,status,payment_status,total_amount")
+         if(orderError) throw orderError;
 
     const orderMap = new Map(
       (orders || []).map(order => [String(order.id),order])
