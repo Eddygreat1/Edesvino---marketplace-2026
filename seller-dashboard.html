@@ -558,9 +558,15 @@ async function loadOrders(){
                 order.delivery_address || "Not provided"
               )}</p>
 
+          
             <p class="status">
-              Current status: ${escapeHTML(status)}
-            </p>
+  Current status: ${escapeHTML(status)}
+</p>
+
+<p class="status">
+  Payment status: ${escapeHTML(order.payment_status || "Not recorded")}
+</p>
+    
 
             <label for="status-${escapeHTML(order.id)}">
               Update status
