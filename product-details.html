@@ -7,7 +7,9 @@
   <title>Product Details | Edesvino Marketplace</title>
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -23,7 +25,9 @@
       padding: 22px 14px;
     }
 
-    header h1 { margin: 0 0 8px; }
+    header h1 {
+      margin: 0 0 8px;
+    }
 
     main {
       max-width: 900px;
@@ -36,6 +40,7 @@
       padding: 18px;
       border-radius: 12px;
       box-shadow: 0 2px 8px #00000010;
+      margin-bottom: 18px;
     }
 
     .back {
@@ -73,7 +78,9 @@
       overflow-wrap: anywhere;
     }
 
-    .muted { color: #6b7280; }
+    .muted {
+      color: #6b7280;
+    }
 
     label {
       display: block;
@@ -81,16 +88,30 @@
       font-weight: bold;
     }
 
-    input {
+    input,
+    select,
+    textarea {
       width: 100%;
-      max-width: 120px;
       padding: 11px;
       font-size: 16px;
       border: 1px solid #d1d5db;
       border-radius: 7px;
+      background: white;
     }
 
-    button, .button {
+    input {
+      max-width: 120px;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    button,
+    .button {
       display: block;
       width: 100%;
       padding: 13px;
@@ -106,20 +127,108 @@
       cursor: pointer;
     }
 
-    .green { background: #047857; }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
 
-    #message {
+    .green {
+      background: #047857;
+    }
+
+    #message,
+    #reviewMessage {
       margin-top: 15px;
       line-height: 1.5;
       overflow-wrap: anywhere;
     }
 
-    .error { color: #b91c1c; }
-    .success { color: #047857; }
+    .error {
+      color: #b91c1c;
+    }
+
+    .success {
+      color: #047857;
+    }
+
+    .rating-summary {
+      padding: 15px;
+      background: #f9fafb;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+
+    .average-rating {
+      font-size: 30px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    .stars {
+      color: #f59e0b;
+      font-size: 22px;
+      letter-spacing: 2px;
+    }
+
+    .review-count {
+      color: #6b7280;
+      margin-top: 5px;
+    }
+
+    .review-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .review-card h4 {
+      margin: 0 0 8px;
+    }
+
+    .review-card p {
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .review-date {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .verified {
+      display: inline-block;
+      margin-top: 7px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .empty {
+      color: #6b7280;
+      padding: 15px 0;
+      line-height: 1.6;
+    }
+
+    .small-note {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
 
     @media (max-width: 650px) {
-      .product { grid-template-columns: 1fr; }
-      .product-image { max-height: 300px; }
+      .product {
+        grid-template-columns: 1fr;
+      }
+
+      .product-image {
+        max-height: 300px;
+      }
     }
   </style>
 </head>
@@ -139,6 +248,72 @@
       Loading product details...
     </section>
 
+    <section class="panel" id="reviewsSection">
+      <h2>Customer Reviews &amp; Ratings</h2>
+
+      <p class="muted">
+        See what customers think about this product.
+      </p>
+
+      <div id="ratingSummary" class="rating-summary">
+        Loading ratings...
+      </div>
+
+      <div id="reviewsList" aria-live="polite">
+        Loading customer reviews...
+      </div>
+
+      <hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0">
+
+      <div id="reviewFormArea">
+        <h3>Write a Review</h3>
+        <p class="muted">
+          Share your experience with this product.
+        </p>
+
+        <p id="reviewMessage" role="status" aria-live="polite"></p>
+
+        <p id="reviewAccessMessage" class="empty">
+          Checking review eligibility...
+        </p>
+
+        <form id="reviewForm" hidden>
+          <label for="rating">Your Rating</label>
+
+          <select id="rating" required>
+            <option value="">Choose a rating</option>
+            <option value="5">5 stars - Excellent</option>
+            <option value="4">4 stars - Very good</option>
+            <option value="3">3 stars - Good</option>
+            <option value="2">2 stars - Fair</option>
+            <option value="1">1 star - Poor</option>
+          </select>
+
+          <label for="reviewText">Your Review</label>
+
+          <textarea
+            id="reviewText"
+            minlength="3"
+            maxlength="2000"
+            placeholder="Tell other customers about your experience..."
+            required></textarea>
+
+          <p class="small-note">
+            Reviews must be at least 3 characters and no more than
+            2,000 characters. Only customers with a delivered,
+            successfully paid order can submit a review.
+          </p>
+
+          <button
+            id="submitReviewButton"
+            class="green"
+            type="submit">
+            Submit Review
+          </button>
+        </form>
+      </div>
+    </section>
+
     <p id="message" role="status" aria-live="polite"></p>
   </main>
 
@@ -155,6 +330,25 @@
 
     const statusBox = document.getElementById("status");
     const messageBox = document.getElementById("message");
+
+    const ratingSummary =
+      document.getElementById("ratingSummary");
+
+    const reviewsList =
+      document.getElementById("reviewsList");
+
+    const reviewForm =
+      document.getElementById("reviewForm");
+
+    const reviewAccessMessage =
+      document.getElementById("reviewAccessMessage");
+
+    const reviewMessage =
+      document.getElementById("reviewMessage");
+
+    let supabaseClient = null;
+    let currentProduct = null;
+    let currentUser = null;
 
     function escapeHTML(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -332,6 +526,277 @@
       };
     }
 
+    function makeStars(rating) {
+      const value = Math.max(
+        0,
+        Math.min(5, Math.round(Number(rating) || 0))
+      );
+
+      return "★".repeat(value) + "☆".repeat(5 - value);
+    }
+
+    function formatDate(value) {
+      if (!value) return "Date unavailable";
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return "Date unavailable";
+      }
+
+      return date.toLocaleDateString("en-NG", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+    }
+
+    async function loadReviews() {
+      if (!currentProduct) return;
+
+      ratingSummary.textContent = "Loading ratings...";
+      reviewsList.textContent = "Loading customer reviews...";
+
+      const { data, error } = await supabaseClient
+        .from("product_reviews")
+        .select("rating, review_text, created_at")
+        .eq("product_id", currentProduct.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Review loading error:", error);
+
+        ratingSummary.textContent =
+          "Ratings are temporarily unavailable.";
+
+        reviewsList.innerHTML = `
+          <p class="empty">
+            We could not load reviews right now.
+            Please refresh the page and try again.
+          </p>
+        `;
+
+        return;
+      }
+
+      const reviews = Array.isArray(data) ? data : [];
+
+      if (reviews.length === 0) {
+        ratingSummary.innerHTML = `
+          <div class="average-rating">No ratings yet</div>
+          <div class="review-count">
+            Be the first customer to review this product.
+          </div>
+        `;
+
+        reviewsList.innerHTML = `
+          <p class="empty">
+            No customer reviews have been submitted for this product yet.
+          </p>
+        `;
+
+        return;
+      }
+
+      const total = reviews.reduce(
+        (sum, review) => sum + Number(review.rating || 0),
+        0
+      );
+
+      const average = total / reviews.length;
+
+      ratingSummary.innerHTML = `
+        <div class="average-rating">
+          ${average.toFixed(1)} / 5
+        </div>
+
+        <div class="stars" aria-label="${average.toFixed(1)} out of 5 stars">
+          ${makeStars(average)}
+        </div>
+
+        <div class="review-count">
+          ${reviews.length}
+          ${reviews.length === 1 ? "review" : "reviews"}
+        </div>
+      `;
+
+      reviewsList.innerHTML = reviews.map(review => `
+        <article class="review-card">
+          <h4>Customer Review</h4>
+
+          <div class="stars" aria-label="${Number(review.rating)} out of 5 stars">
+            ${makeStars(review.rating)}
+          </div>
+
+          <p>${escapeHTML(review.review_text)}</p>
+
+          <span class="verified">
+            ✓ Verified purchase
+          </span>
+
+          <div class="review-date">
+            Posted ${escapeHTML(formatDate(review.created_at))}
+          </div>
+        </article>
+      `).join("");
+    }
+
+    async function setupReviewForm() {
+      reviewForm.hidden = true;
+      reviewAccessMessage.textContent =
+        "Checking review eligibility...";
+
+      if (!currentUser) {
+        reviewAccessMessage.innerHTML = `
+          Please <a href="./customer-login.html">sign in to your customer account</a>
+          to check whether you can review this product.
+        `;
+        return;
+      }
+
+      const { data: existingReview, error: existingError } =
+        await supabaseClient
+          .from("product_reviews")
+          .select("rating")
+          .eq("product_id", currentProduct.id)
+          .eq("customer_id", currentUser.id)
+          .maybeSingle();
+
+      if (existingError) {
+        console.error("Existing review check error:", existingError);
+
+        reviewAccessMessage.textContent =
+          "We could not check your review status. Please refresh the page.";
+
+        return;
+      }
+
+      if (existingReview) {
+        reviewAccessMessage.textContent =
+          "You have already reviewed this product. Thank you for sharing your experience.";
+        return;
+      }
+
+      const { data: canReview, error: eligibilityError } =
+        await supabaseClient.rpc(
+          "can_review_product",
+          {
+            p_product_id: Number(currentProduct.id)
+          }
+        );
+
+      if (eligibilityError) {
+        console.error(
+          "Review eligibility check error:",
+          eligibilityError
+        );
+
+        reviewAccessMessage.textContent =
+          "We could not verify your purchase eligibility. Please try again later.";
+
+        return;
+      }
+
+      if (canReview !== true) {
+        reviewAccessMessage.textContent =
+          "You can submit a review after you have a successfully paid order for this product marked as Delivered.";
+        return;
+      }
+
+      reviewAccessMessage.textContent =
+        "Your purchase is eligible for a review.";
+
+      reviewForm.hidden = false;
+    }
+
+    reviewForm.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      if (!currentProduct || !currentUser) {
+        reviewMessage.className = "error";
+        reviewMessage.textContent =
+          "Please sign in before submitting a review.";
+        return;
+      }
+
+      const rating = Number(
+        document.getElementById("rating").value
+      );
+
+      const reviewText =
+        document.getElementById("reviewText").value.trim();
+
+      if (
+        !Number.isInteger(rating) ||
+        rating < 1 ||
+        rating > 5
+      ) {
+        reviewMessage.className = "error";
+        reviewMessage.textContent =
+          "Please select a rating from 1 to 5 stars.";
+        return;
+      }
+
+      if (reviewText.length < 3 || reviewText.length > 2000) {
+        reviewMessage.className = "error";
+        reviewMessage.textContent =
+          "Your review must contain between 3 and 2,000 characters.";
+        return;
+      }
+
+      const submitButton =
+        document.getElementById("submitReviewButton");
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting...";
+
+      reviewMessage.className = "";
+      reviewMessage.textContent = "";
+
+      try {
+        const { error } = await supabaseClient
+          .from("product_reviews")
+          .insert({
+            product_id: Number(currentProduct.id),
+            customer_id: currentUser.id,
+            rating: rating,
+            review_text: reviewText
+          });
+
+        if (error) throw error;
+
+        reviewMessage.className = "success";
+        reviewMessage.textContent =
+          "Thank you! Your review has been submitted.";
+
+        reviewForm.reset();
+
+        await loadReviews();
+        await setupReviewForm();
+
+      } catch (error) {
+        console.error("Review submission error:", error);
+
+        reviewMessage.className = "error";
+
+        if (error.code === "23505") {
+          reviewMessage.textContent =
+            "You have already reviewed this product.";
+          reviewForm.hidden = true;
+        } else if (error.code === "42501") {
+          reviewMessage.textContent =
+            "Your purchase could not be verified. Only eligible customers can submit reviews.";
+        } else {
+          reviewMessage.textContent =
+            "Your review could not be submitted. Please check your connection and try again.";
+        }
+
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit Review";
+      }
+    });
+
     async function loadProduct() {
       const params = new URLSearchParams(
         window.location.search
@@ -357,12 +822,12 @@
       }
 
       try {
-        const client = window.supabase.createClient(
+        supabaseClient = window.supabase.createClient(
           SUPABASE_URL,
           SUPABASE_KEY
         );
 
-        const { data, error } = await client
+        const { data, error } = await supabaseClient
           .from("products")
           .select("*")
           .eq("id", id)
@@ -381,13 +846,36 @@
           return;
         }
 
+        currentProduct = data;
+
         showProduct(data);
+
+        const { data: authData, error: authError } =
+          await supabaseClient.auth.getUser();
+
+        if (authError) {
+          console.warn(
+            "Could not check signed-in customer:",
+            authError.message
+          );
+        }
+
+        currentUser = authData?.user || null;
+
+        await loadReviews();
+        await setupReviewForm();
 
       } catch (error) {
         console.error("Product details error:", error);
 
         statusBox.textContent =
           "Could not load product details. Please try again later.";
+
+        ratingSummary.textContent =
+          "Ratings are unavailable until the product loads.";
+
+        reviewsList.textContent =
+          "Customer reviews could not be loaded.";
       }
     }
 
