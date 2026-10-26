@@ -227,10 +227,60 @@ return;
 const commissions = commissionResult.data || [];
 const withdrawals = withdrawalResult.data || [];
 
-const totalEarnings = commissions.reduce(
-(sum,row) => sum + Number(row.seller_amount || 0),
-0
+// Count earnings only from delivered orders with confirmed payment status.
+const orderIds = [...new Set(
+  commissions.map(row => row.order_id).filter(id => id != null)
+)];
+
+let eligibleCommissions = [];
+
+if (orderIds.length > 0) {
+  const { data: orders, error: ordersError } = await client
+    .from("orders")
+    .select("id,status,payment_status")
+    .in("id", orderIds);
+
+  if (ordersError) {
+    $("history").textContent =
+      "Could not verify order payments: " + ordersError.message;
+
+    $("earnings").textContent = "Unavailable";
+    $("available").textContent = "Unavailable";
+    $("pending").textContent = "Unavailable";
+    $("paid").textContent = "Unavailable";
+
+    showMessage(
+      "message",
+      "Wallet totals are hidden because payment status could not be verified."
+    );
+    return;
+  }
+
+  const ordersById = new Map(
+    (orders || []).map(order => [String(order.id), order])
+  );
+
+  eligibleCommissions = commissions.filter(row => {
+    const order = ordersById.get(String(row.order_id));
+
+    const orderStatus = String(order?.status || "")
+      .trim().toLowerCase();
+
+    const paymentStatus = String(order?.payment_status || "")
+      .trim().toLowerCase();
+
+    return orderStatus === "delivered" &&
+      ["success", "successful", "paid", "completed"].includes(paymentStatus);
+  });
+}
+
+const totalEarnings = eligibleCommissions.reduce(
+  (sum, row) => sum + Number(row.seller_amount || 0),
+  0
 );
+
+
+  
 
 const paid = withdrawals
 .filter(row => String(row.status || "").toLowerCase() === "paid")
