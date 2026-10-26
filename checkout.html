@@ -93,9 +93,20 @@
   const PENDING_KEY = "edesvinoPendingPayment";
 
   const db = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+  SUPABASE_URL,
+  SUPABASE_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage
+    }
+  }
+);
+
+
+  
 
   const form = document.getElementById("checkoutForm");
   const button = document.getElementById("continueButton");
