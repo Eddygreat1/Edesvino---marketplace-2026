@@ -55,6 +55,9 @@ nav{
   text-decoration:none;
   padding:11px 14px;
   border-radius:7px;
+  font-weight:bold;
+  border:0;
+  cursor:pointer;
 }
 
 .link.secondary{background:#374151}
@@ -88,6 +91,13 @@ nav{
 .muted{
   color:#657168;
   font-size:14px;
+}
+
+.store-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0;
 }
 
 .products{
@@ -149,6 +159,11 @@ footer{
   color:#657168;
   padding:22px;
 }
+
+a:focus{
+  outline:3px solid #86efac;
+  outline-offset:2px;
+}
 </style>
 </head>
 
@@ -164,8 +179,8 @@ footer{
   <section class="panel">
     <h2>Browse Our Stores</h2>
     <p>
-      Explore products from participating stores.
-      Select a product to see its full details.
+      Discover sellers, visit their individual storefronts,
+      and explore the products they offer.
     </p>
 
     <nav>
@@ -212,7 +227,7 @@ const statusBox = document.getElementById("status");
 const storesBox = document.getElementById("stores");
 
 function safe(value){
-  return String(value ?? "").replace(/[&<>"']/g, function(char){
+  return String(value ?? "").replace(/[&<>"']/g,function(char){
     return {
       "&":"&amp;",
       "<":"&lt;",
@@ -224,7 +239,13 @@ function safe(value){
 }
 
 function money(value){
-  return "₦" + Number(value || 0).toLocaleString("en-NG",{
+  const amount = Number(value);
+
+  if(!Number.isFinite(amount)){
+    return "Price unavailable";
+  }
+
+  return "₦" + amount.toLocaleString("en-NG",{
     minimumFractionDigits:2,
     maximumFractionDigits:2
   });
@@ -234,7 +255,7 @@ function validImage(value){
   if(!value) return "";
 
   try{
-    const url = new URL(value, window.location.href);
+    const url = new URL(value,window.location.href);
 
     if(url.protocol !== "https:" && url.protocol !== "http:"){
       return "";
@@ -244,6 +265,33 @@ function validImage(value){
   }catch(error){
     return "";
   }
+}
+
+function getStoreName(product){
+  return String(
+    product.store_name ||
+    product.store ||
+    "Independent Seller"
+  ).trim() || "Independent Seller";
+}
+
+function getStoreLink(group){
+  const sellerProduct = group.products.find(function(product){
+    return product.seller_id;
+  });
+
+  if(sellerProduct){
+    return "./seller-store.html?seller_id=" +
+      encodeURIComponent(String(sellerProduct.seller_id));
+  }
+
+  const storeValue =
+    group.products[0].store ||
+    group.products[0].store_name ||
+    group.name;
+
+  return "./seller-store.html?store=" +
+    encodeURIComponent(String(storeValue));
 }
 
 async function loadStores(){
@@ -264,11 +312,7 @@ async function loadStores(){
     const grouped = new Map();
 
     data.forEach(function(product){
-      const storeName = String(
-        product.store_name ||
-        product.store ||
-        "Independent Seller"
-      ).trim() || "Independent Seller";
+      const storeName = getStoreName(product);
 
       const sellerKey = product.seller_id
         ? String(product.seller_id)
@@ -318,9 +362,9 @@ async function loadStores(){
 
               <p class="price">${money(product.price)}</p>
 
-              <a href="./product-details.html?id=${encodeURIComponent(
-                String(product.id)
-              )}">
+              <a href="./product-details.html?id=${
+                encodeURIComponent(String(product.id))
+              }">
                 View Product Details
               </a>
             </div>
@@ -336,6 +380,12 @@ async function loadStores(){
             ${group.products.length}
             ${group.products.length === 1 ? "product" : "products"}
           </p>
+
+          <div class="store-actions">
+            <a class="link" href="${safe(getStoreLink(group))}">
+              Visit Store
+            </a>
+          </div>
 
           <div class="products">
             ${productMarkup}
