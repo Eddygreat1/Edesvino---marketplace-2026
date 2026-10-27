@@ -1,304 +1,834 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edesvino Control Centre</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Control Centre</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-        body {
-            margin: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            background: #f3f6f4;
-            color: #222;
-        }
+<style>
+* {
+  box-sizing: border-box;
+}
 
-        header {
-            background: #075e3b;
-            color: white;
-            padding: 25px 16px;
-            text-align: center;
-        }
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: Arial, sans-serif;
+  background: #f2f6f3;
+  color: #202820;
+}
 
-        header h1 {
-            margin: 0 0 10px;
-            font-size: 27px;
-        }
+header {
+  background: #14532d;
+  color: white;
+  padding: 22px 16px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
 
-        header p {
-            margin: 0;
-            font-size: 14px;
-            line-height: 1.6;
-        }
+header h1 {
+  margin: 0 0 8px;
+  font-size: 25px;
+}
 
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px 14px 35px;
-        }
+header p {
+  margin: 0;
+  line-height: 1.5;
+}
 
-        .welcome {
-            background: white;
-            padding: 18px;
-            border-radius: 12px;
-            margin-bottom: 22px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
+section, .panel {
+  background: white;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 7px #0000000d;
+}
 
-        .welcome h2 {
-            color: #075e3b;
-            margin-top: 0;
-        }
+h2 {
+  font-size: 19px;
+  margin-top: 0;
+}
 
-        .section-title {
-            font-size: 19px;
-            margin: 26px 0 12px;
-            color: #075e3b;
-        }
+h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-        }
+input, button {
+  width: 100%;
+  padding: 12px;
+  margin: 7px 0;
+  border-radius: 7px;
+  font-size: 15px;
+}
 
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 18px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            border-left: 5px solid #087443;
-        }
+input {
+  border: 1px solid #cbd5ce;
+}
 
-        .card h3 {
-            margin: 0 0 9px;
-            font-size: 17px;
-        }
+button {
+  border: none;
+  background: #166534;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
 
-        .card p {
-            font-size: 13px;
-            color: #555;
-            line-height: 1.6;
-            min-height: 40px;
-        }
+button:disabled {
+  opacity: 0.6;
+}
 
-        .button {
-            display: block;
-            text-align: center;
-            background: #087443;
-            color: white;
-            padding: 12px 10px;
-            border-radius: 7px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 14px;
-            margin-top: 12px;
-        }
+.small-button {
+  width: auto;
+  padding: 9px 14px;
+}
 
-        .button:hover {
-            background: #064f30;
-        }
+.message {
+  padding: 10px;
+  border-radius: 7px;
+  background: #edf7ef;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
 
-        .customer {
-            border-left-color: #2563eb;
-        }
+.error {
+  background: #fff0f0;
+  color: #9b1c1c;
+}
 
-        .customer .button {
-            background: #2563eb;
-        }
+nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
 
-        .customer .button:hover {
-            background: #1d4ed8;
-        }
+nav a {
+  display: block;
+  text-decoration: none;
+  background: #166534;
+  color: white;
+  padding: 13px 9px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+}
 
-        .admin {
-            border-left-color: #a16207;
-        }
+nav a:active {
+  opacity: 0.8;
+}
 
-        .admin .button {
-            background: #a16207;
-        }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
 
-        .admin .button:hover {
-            background: #854d0e;
-        }
+.metric {
+  border: 1px solid #e0e8e1;
+  border-radius: 9px;
+  padding: 13px;
+  overflow-wrap: anywhere;
+}
 
-        .finance {
-            border-left-color: #7c3aed;
-        }
+.metric .label {
+  display: block;
+  color: #526052;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
 
-        .finance .button {
-            background: #7c3aed;
-        }
+.metric .value {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+}
 
-        .finance .button:hover {
-            background: #5b21b6;
-        }
+.note {
+  color: #596459;
+  font-size: 13px;
+  line-height: 1.5;
+}
 
-        .notice {
-            background: #fff7d6;
-            border-left: 5px solid #eab308;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 24px;
-            font-size: 13px;
-            line-height: 1.7;
-        }
+.table-wrap {
+  overflow-x: auto;
+}
 
-        footer {
-            text-align: center;
-            padding: 20px 12px;
-            color: #666;
-            font-size: 12px;
-        }
-    </style>
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  min-width: 470px;
+}
+
+th, td {
+  border-bottom: 1px solid #e2e8e3;
+  padding: 10px 8px;
+  text-align: left;
+}
+
+th {
+  background: #f0f5f1;
+}
+
+.hidden {
+  display: none;
+}
+
+footer {
+  text-align: center;
+  padding: 18px 8px;
+  font-size: 13px;
+}
+
+footer a {
+  color: #166534;
+}
+
+@media (min-width: 700px) {
+  body {
+    max-width: 1000px;
+    margin: auto;
+  }
+
+  nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+</style>
 </head>
 
 <body>
 
 <header>
-    <h1>EDESVINO</h1>
-    <p>Marketplace Control Centre</p>
-    <p>One place to access your marketplace pages</p>
+  <h1>Edesvino Control Centre</h1>
+  <p>Owner overview for your marketplace, payments, commissions and withdrawals.</p>
 </header>
 
-<main class="container">
+<section>
+  <h2>Owner Account</h2>
 
-    <section class="welcome">
-        <h2>Welcome to Edesvino</h2>
-        <p>
-            Use this Control Centre to access the marketplace, manage products,
-            review seller applications, check platform commissions, manage
-            withdrawal requests, and view the seller wallet.
-        </p>
-    </section>
+  <div id="accountInfo" class="message">
+    Sign in with your Edesvino owner account to view the overview.
+  </div>
 
-    <h2 class="section-title">🏪 Marketplace</h2>
+  <form id="loginForm">
+    <label for="email">Owner email address</label>
+    <input
+      id="email"
+      type="email"
+      autocomplete="username"
+      placeholder="Enter your owner email"
+      required
+    >
 
-    <div class="grid">
+    <label for="password">Password</label>
+    <input
+      id="password"
+      type="password"
+      autocomplete="current-password"
+      placeholder="Enter your password"
+      required
+    >
 
-        <div class="card">
-            <h3>Marketplace Home</h3>
-            <p>View products available for customers to purchase.</p>
-            <a class="button" href="index.html">Open Marketplace</a>
-        </div>
+    <button id="loginButton" type="submit">Owner Login</button>
+  </form>
 
-        <div class="card">
-            <h3>Shopping Cart</h3>
-            <p>Open the shopping cart and review selected products.</p>
-            <a class="button" href="cart.html">Open Cart</a>
-        </div>
+  <div id="accountActions" class="hidden">
+    <button id="refreshButton" type="button">Refresh Overview</button>
+    <button id="logoutButton" type="button">Log Out</button>
+  </div>
+</section>
 
-        <div class="card">
-            <h3>Checkout</h3>
-            <p>Open the checkout page to enter delivery information and pay.</p>
-            <a class="button" href="checkout.html">Open Checkout</a>
-        </div>
+<div id="dashboard" class="hidden">
 
-    </div>
+  <section>
+    <h2>Marketplace Overview</h2>
 
-    <h2 class="section-title">👤 Customer Pages</h2>
-
-    <div class="grid">
-
-        <div class="card customer">
-            <h3>Customer Registration</h3>
-            <p>Register a customer account.</p>
-            <a class="button" href="customer-register.html">Register Customer</a>
-        </div>
-
-        <div class="card customer">
-            <h3>Customer Login</h3>
-            <p>Sign in to a customer account.</p>
-            <a class="button" href="customer-login.html">Customer Login</a>
-        </div>
-
-        <div class="card customer">
-            <h3>Customer Orders</h3>
-            <p>View customer order history and order details.</p>
-            <a class="button" href="customer-orders.html">View My Orders</a>
-        </div>
-
-    </div>
-
-    <h2 class="section-title">🛍️ Seller Management</h2>
+    <p class="note">
+      These figures are based on records your account is permitted to read.
+      If a database permission prevents access to a section, that section will
+      show as unavailable rather than inventing figures.
+    </p>
 
     <div class="grid">
+      <div class="metric">
+        <span class="label">Orders Retrieved</span>
+        <span class="value" id="ordersCount">—</span>
+      </div>
 
-        <div class="card">
-            <h3>Seller Dashboard</h3>
-            <p>Manage products, review customer orders, and update order statuses.</p>
-            <a class="button" href="seller-dashboard.html">Open Seller Dashboard</a>
-        </div>
+      <div class="metric">
+        <span class="label">Order Value Retrieved</span>
+        <span class="value" id="ordersValue">—</span>
+      </div>
 
-        <div class="card">
-            <h3>Seller Registration</h3>
-            <p>Open the seller registration page.</p>
-            <a class="button" href="seller-register.html">Register as Seller</a>
-        </div>
+      <div class="metric">
+        <span class="label">Successful Payments</span>
+        <span class="value" id="successfulPayments">—</span>
+      </div>
 
-        <div class="card">
-            <h3>Seller Portal</h3>
-            <p>Access the seller portal.</p>
-            <a class="button" href="seller-portal.html">Open Seller Portal</a>
-        </div>
-
-        <div class="card admin">
-            <h3>Seller Applications</h3>
-            <p>Review and manage applications from people who want to become sellers.</p>
-            <a class="button" href="admin-dashboard.html">Open Admin Dashboard</a>
-        </div>
-
-        <div class="card admin">
-            <h3>Owner Seller Approvals</h3>
-            <p>Open the owner seller approval page.</p>
-            <a class="button" href="owner-seller-approvals.html">Open Seller Approvals</a>
-        </div>
-
+      <div class="metric">
+        <span class="label">Pending Payments</span>
+        <span class="value" id="pendingPayments">—</span>
+      </div>
     </div>
+  </section>
 
-    <h2 class="section-title">💰 Platform Finance</h2>
+  <section>
+    <h2>Platform Commissions</h2>
 
     <div class="grid">
+      <div class="metric">
+        <span class="label">Commission Records</span>
+        <span class="value" id="commissionCount">—</span>
+      </div>
 
-        <div class="card finance">
-            <h3>Platform Commissions</h3>
-            <p>Review commission records, total commissions, and seller earnings.</p>
-            <a class="button" href="commissions.html">Open Commissions</a>
-        </div>
+      <div class="metric">
+        <span class="label">Total Commission</span>
+        <span class="value" id="commissionTotal">—</span>
+      </div>
 
-        <div class="card finance">
-            <h3>Seller Wallet</h3>
-            <p>View seller earnings, available balance, paid withdrawals, and withdrawal history.</p>
-            <a class="button" href="seller-wallet.html">Open Seller Wallet</a>
-        </div>
+      <div class="metric">
+        <span class="label">Seller Earnings Recorded</span>
+        <span class="value" id="sellerEarnings">—</span>
+      </div>
 
-        <div class="card finance">
-            <h3>Seller Withdrawals</h3>
-            <p>Review withdrawal requests and manage their payment statuses.</p>
-            <a class="button" href="withdrawals.html">Open Withdrawals</a>
-        </div>
+      <div class="metric">
+        <span class="label">Commission Access</span>
+        <span class="value" id="commissionAccess">Checking</span>
+      </div>
+    </div>
+  </section>
 
+  <section>
+    <h2>Seller Withdrawals</h2>
+
+    <div class="grid">
+      <div class="metric">
+        <span class="label">Withdrawal Records</span>
+        <span class="value" id="withdrawalCount">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Pending / Approved</span>
+        <span class="value" id="withdrawalPending">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Paid Withdrawals</span>
+        <span class="value" id="withdrawalPaid">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Withdrawal Access</span>
+        <span class="value" id="withdrawalAccess">Checking</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Recent Orders</h2>
+
+    <div id="ordersMessage" class="message">
+      Order information will appear here after refreshing.
     </div>
 
-    <div class="notice">
-        <strong>Important:</strong><br>
-        This Control Centre is a navigation page. It provides links to your
-        existing Edesvino pages; it does not replace them or bypass their
-        login and permission requirements. Some pages may require you to sign in.
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Amount</th>
+            <th>Order Status</th>
+            <th>Payment Status</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTable">
+          <tr>
+            <td colspan="4">No data loaded yet.</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
+  </section>
 
-    <footer>
-        <p>© 2026 Edesvino Marketplace</p>
-        <p>Marketplace Control Centre</p>
-        <a href="index.html">Return to Marketplace Home</a>
-    </footer>
+</div>
 
-</main>
+<section>
+  <h2>Marketplace Navigation</h2>
+
+  <nav>
+    <a href="index.html">Marketplace</a>
+    <a href="cart.html">Shopping Cart</a>
+    <a href="checkout.html">Checkout</a>
+
+    <a href="customer-register.html">Customer Registration</a>
+    <a href="customer-login.html">Customer Login</a>
+    <a href="customer-orders.html">Customer Orders</a>
+
+    <a href="seller-register.html">Seller Registration</a>
+    <a href="seller-dashboard.html">Seller Dashboard</a>
+    <a href="seller-portal.html">Seller Portal</a>
+
+    <a href="admin-dashboard.html">Admin Dashboard</a>
+    <a href="owner-seller-approvals.html">Seller Approvals</a>
+
+    <a href="commissions.html">Commissions</a>
+    <a href="seller-wallet.html">Seller Wallet</a>
+    <a href="withdrawals.html">Withdrawals</a>
+  </nav>
+</section>
+
+<footer>
+  <a href="index.html">Back to Edesvino Marketplace</a>
+  <p>Owner overview only. This page does not initiate payments or change orders.</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
+
+  const SUPABASE_KEY =
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  const OWNER_ID =
+    "b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  const $ = id => document.getElementById(id);
+
+  function naira(value) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return "Unavailable";
+    }
+
+    return "₦" + number.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function showMessage(message, isError) {
+    const box = $("accountInfo");
+    box.textContent = message;
+    box.className = isError
+      ? "message error"
+      : "message";
+  }
+
+  function displayValue(id, value) {
+    $(id).textContent = value;
+  }
+
+  function showDashboard(show) {
+    $("dashboard").classList.toggle("hidden", !show);
+    $("accountActions").classList.toggle("hidden", !show);
+    $("loginForm").classList.toggle("hidden", show);
+  }
+
+  function clearOverview() {
+    [
+      "ordersCount",
+      "ordersValue",
+      "successfulPayments",
+      "pendingPayments",
+      "commissionCount",
+      "commissionTotal",
+      "sellerEarnings",
+      "commissionAccess",
+      "withdrawalCount",
+      "withdrawalPending",
+      "withdrawalPaid",
+      "withdrawalAccess"
+    ].forEach(id => displayValue(id, "—"));
+
+    $("ordersTable").innerHTML =
+      '<tr><td colspan="4">No data loaded yet.</td></tr>';
+
+    $("ordersMessage").textContent =
+      "Order information will appear here after refreshing.";
+  }
+
+  function isSuccessful(status) {
+    return String(status || "").toLowerCase() === "success";
+  }
+
+  function isPending(status) {
+    const value = String(status || "").toLowerCase();
+
+    return value === "pending" ||
+           value === "processing";
+  }
+
+  function moneySum(rows, field) {
+    return rows.reduce((total, row) => {
+      const amount = Number(row[field]);
+
+      return total + (
+        Number.isFinite(amount) ? amount : 0
+      );
+    }, 0);
+  }
+
+  async function checkOwner() {
+    const result = await client.auth.getSession();
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    const session = result.data.session;
+
+    if (!session) {
+      showDashboard(false);
+      showMessage(
+        "Please sign in with your Edesvino owner account.",
+        false
+      );
+      return false;
+    }
+
+    if (session.user.id !== OWNER_ID) {
+      await client.auth.signOut();
+
+      showDashboard(false);
+      showMessage(
+        "Access denied. This overview is restricted to the owner account.",
+        true
+      );
+
+      return false;
+    }
+
+    showDashboard(true);
+
+    showMessage(
+      "Owner signed in: " +
+      (session.user.email || "Owner account"),
+      false
+    );
+
+    return true;
+  }
+
+  async function loadOrders() {
+    const { data, error } = await client
+      .from("orders")
+      .select("id,total_amount,status,payment_status")
+      .order("id", { ascending: false })
+      .limit(500);
+
+    if (error) {
+      displayValue("ordersCount", "Unavailable");
+      displayValue("ordersValue", "Unavailable");
+      displayValue("successfulPayments", "Unavailable");
+      displayValue("pendingPayments", "Unavailable");
+
+      $("ordersMessage").textContent =
+        "Orders could not be loaded: " + error.message;
+
+      $("ordersTable").innerHTML =
+        '<tr><td colspan="4">Check the orders table permissions.</td></tr>';
+
+      return;
+    }
+
+    const rows = data || [];
+
+    displayValue("ordersCount", rows.length);
+    displayValue(
+      "ordersValue",
+      naira(moneySum(rows, "total_amount"))
+    );
+
+    displayValue(
+      "successfulPayments",
+      rows.filter(row =>
+        isSuccessful(row.payment_status)
+      ).length
+    );
+
+    displayValue(
+      "pendingPayments",
+      rows.filter(row =>
+        isPending(row.payment_status)
+      ).length
+    );
+
+    $("ordersMessage").textContent =
+      "Showing the latest " + rows.length +
+      " order records returned by the database.";
+
+    const recent = rows.slice(0, 8);
+    const tbody = $("ordersTable");
+
+    tbody.replaceChildren();
+
+    if (!recent.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+
+      td.colSpan = 4;
+      td.textContent = "No orders were returned.";
+
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    recent.forEach(row => {
+      const tr = document.createElement("tr");
+
+      [
+        row.id,
+        naira(row.total_amount),
+        row.status || "Unknown",
+        row.payment_status || "Unknown"
+      ].forEach(value => {
+        const td = document.createElement("td");
+        td.textContent = String(value);
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function loadCommissions() {
+    const { data, error } = await client
+      .from("platform_commissions")
+      .select("*")
+      .limit(1000);
+
+    if (error) {
+      displayValue("commissionCount", "Unavailable");
+      displayValue("commissionTotal", "Unavailable");
+      displayValue("sellerEarnings", "Unavailable");
+      displayValue("commissionAccess", "Unavailable");
+
+      return;
+    }
+
+    const rows = data || [];
+
+    displayValue("commissionCount", rows.length);
+
+    displayValue(
+      "commissionTotal",
+      naira(moneySum(rows, "commission_amount"))
+    );
+
+    let earningsField = null;
+
+    if (rows.length) {
+      const candidates = [
+        "seller_amount",
+        "seller_earnings",
+        "seller_net_amount"
+      ];
+
+      earningsField = candidates.find(field =>
+        Object.prototype.hasOwnProperty.call(rows[0], field)
+      );
+    }
+
+    displayValue(
+      "sellerEarnings",
+      earningsField
+        ? naira(moneySum(rows, earningsField))
+        : "Check commissions page"
+    );
+
+    displayValue("commissionAccess", "Available");
+  }
+
+  async function loadWithdrawals() {
+    const { data, error } = await client
+      .from("withdrawals")
+      .select("id,amount,status")
+      .limit(1000);
+
+    if (error) {
+      displayValue("withdrawalCount", "Unavailable");
+      displayValue("withdrawalPending", "Unavailable");
+      displayValue("withdrawalPaid", "Unavailable");
+      displayValue("withdrawalAccess", "Unavailable");
+
+      return;
+    }
+
+    const rows = data || [];
+
+    displayValue("withdrawalCount", rows.length);
+
+    const pendingRows = rows.filter(row => {
+      const status = String(row.status || "").toLowerCase();
+
+      return status === "pending" ||
+             status === "approved";
+    });
+
+    const paidRows = rows.filter(row =>
+      String(row.status || "").toLowerCase() === "paid"
+    );
+
+    displayValue(
+      "withdrawalPending",
+      naira(moneySum(pendingRows, "amount"))
+    );
+
+    displayValue(
+      "withdrawalPaid",
+      naira(moneySum(paidRows, "amount"))
+    );
+
+    displayValue("withdrawalAccess", "Available");
+  }
+
+  async function refreshOverview() {
+    $("refreshButton").disabled = true;
+    $("refreshButton").textContent = "Refreshing...";
+
+    try {
+      const allowed = await checkOwner();
+
+      if (!allowed) {
+        return;
+      }
+
+      clearOverview();
+
+      const results = await Promise.allSettled([
+        loadOrders(),
+        loadCommissions(),
+        loadWithdrawals()
+      ]);
+
+      const failed = results.some(result =>
+        result.status === "rejected"
+      );
+
+      if (failed) {
+        showMessage(
+          "Overview refreshed with some unavailable sections. " +
+          "Check the affected section for details.",
+          true
+        );
+      } else {
+        showMessage(
+          "Overview refreshed. Figures reflect records returned by the database.",
+          false
+        );
+      }
+
+    } catch (error) {
+      showMessage(
+        "Could not refresh overview: " +
+        (error.message || "Unknown error"),
+        true
+      );
+    } finally {
+      $("refreshButton").disabled = false;
+      $("refreshButton").textContent = "Refresh Overview";
+    }
+  }
+
+  $("loginForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const email = $("email").value.trim();
+    const password = $("password").value;
+
+    $("loginButton").disabled = true;
+    $("loginButton").textContent = "Signing in...";
+
+    try {
+      const { error } = await client.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        showMessage(
+          "Login failed: " + error.message,
+          true
+        );
+        return;
+      }
+
+      const allowed = await checkOwner();
+
+      if (allowed) {
+        await refreshOverview();
+      }
+
+    } catch (error) {
+      showMessage(
+        "Login error: " + (error.message || "Please try again."),
+        true
+      );
+    } finally {
+      $("loginButton").disabled = false;
+      $("loginButton").textContent = "Owner Login";
+    }
+  });
+
+  $("refreshButton").addEventListener(
+    "click",
+    refreshOverview
+  );
+
+  $("logoutButton").addEventListener("click", async function () {
+    const { error } = await client.auth.signOut();
+
+    clearOverview();
+    showDashboard(false);
+
+    if (error) {
+      showMessage(
+        "Signed out may not have completed: " + error.message,
+        true
+      );
+    } else {
+      showMessage("You have been logged out.", false);
+    }
+  });
+
+  client.auth.getSession().then(async ({ data, error }) => {
+    if (error) {
+      showMessage(
+        "Could not check your login: " + error.message,
+        true
+      );
+      return;
+    }
+
+    if (data.session) {
+      const allowed = await checkOwner();
+
+      if (allowed) {
+        await refreshOverview();
+      }
+    }
+  });
+
+})();
+</script>
 
 </body>
 </html>
