@@ -395,6 +395,36 @@
           productsBox.appendChild(card);
         });
 
+
+const searchInput = document.getElementById("productSearch");
+const searchMessage = document.getElementById("searchMessage");
+
+if (searchInput) {
+  searchInput.oninput = function () {
+    const query = searchInput.value.trim().toLowerCase();
+    const cards = productsBox.querySelectorAll(".product");
+    let matches = 0;
+
+    cards.forEach(card => {
+      const productText = card.textContent.toLowerCase();
+      const isMatch = productText.includes(query);
+
+      card.style.display = isMatch ? "" : "none";
+
+      if (isMatch) {
+        matches++;
+      }
+    });
+
+    if (searchMessage) {
+      searchMessage.textContent = query
+        ? matches + " matching product(s) found."
+        : "Showing all products.";
+    }
+  };
+}
+
+    
         statusBox.textContent =
           `Marketplace connected. ${data.length} product(s) loaded.`;
 
