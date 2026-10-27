@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14532d">
+
+<title>Seller Store | Edesvino Marketplace</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f6f4;
+  color: #202923;
+}
+
+header {
+  background: #14532d;
+  color: white;
+  padding: 25px 16px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+header p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 18px 14px;
+}
+
+.panel {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.store-intro {
+  text-align: center;
+}
+
+.store-icon {
+  width: 82px;
+  height: 82px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: #e0f2e5;
+  color: #14532d;
+  display: grid;
+  place-items: center;
+  font-size: 38px;
+}
+
+.store-description {
+  color: #59665d;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.button {
+  display: inline-block;
+  background: #166534;
+  color: white;
+  text-decoration: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 12px 15px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.button.secondary {
+  background: #374151;
+}
+
+.button:focus,
+a:focus {
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
+
+#status {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.products {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.product {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px #0000000d;
+  min-width: 0;
+}
+
+.product img {
+  width: 100%;
+  height: 190px;
+  object-fit: contain;
+  padding: 10px;
+  background: white;
+}
+
+.no-image {
+  width: 100%;
+  height: 190px;
+  display: grid;
+  place-items: center;
+  background: #e8eee9;
+  color: #59665d;
+}
+
+.product-info {
+  padding: 15px;
+}
+
+.product h3 {
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+
+.price {
+  color: #047857;
+  font-size: 21px;
+  font-weight: bold;
+  margin: 0 0 10px;
+}
+
+.description {
+  color: #59665d;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.product .button {
+  display: block;
+  text-align: center;
+  margin-top: 10px;
+  width: 100%;
+}
+
+footer {
+  padding: 22px 14px;
+  text-align: center;
+  color: #59665d;
+  font-size: 13px;
+}
+
+footer a {
+  color: #166534;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 480px) {
+  .products {
+    grid-template-columns: 1fr;
+  }
+
+  .product img,
+  .no-image {
+    height: 210px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1 id="headerStoreName">Edesvino Seller Store</h1>
+  <p>Discover products from independent sellers on Edesvino.</p>
+</header>
+
+<main>
+
+  <section class="panel store-intro">
+    <div class="store-icon" aria-hidden="true">🏪</div>
+
+    <h2 id="storeName">Seller Store</h2>
+
+    <p id="storeDescription" class="store-description">
+      Browse products available from this store.
+    </p>
+
+    <p id="productCount">Loading store information...</p>
+
+    <div class="actions">
+      <a class="button secondary" href="./seller-stores.html">
+        All Seller Stores
+      </a>
+
+      <a class="button" href="./index.html">
+        Main Marketplace
+      </a>
+
+      <a class="button secondary" href="./cart.html">
+        Shopping Cart
+      </a>
+    </div>
+  </section>
+
+  <section class="panel" id="status" role="status" aria-live="polite">
+    Loading seller products...
+  </section>
+
+  <section class="products" id="products"></section>
+
+</main>
+
+<footer>
+  <p>Edesvino Marketplace &copy; 2026</p>
+  <a href="./index.html">Back to Marketplace</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const SUPABASE_URL =
+    "https://lxszilqypuglxyfyukdg.supabase.co";
+
+  const SUPABASE_KEY =
+    "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+  const CART_KEY = "edesvinoMarketplaceCart";
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  const params = new URLSearchParams(window.location.search);
+
+  const requestedSellerId = params.get("seller_id");
+  const requestedStoreName = params.get("store");
+
+  const statusBox = document.getElementById("status");
+  const productsBox = document.getElementById("products");
+
+  function safe(value) {
+    return String(value ?? "").replace(/[&<>"']/g, function (char) {
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char];
+    });
+  }
+
+  function money(value) {
+    const amount = Number(value);
+
+    if (!Number.isFinite(amount)) {
+      return "Price unavailable";
+    }
+
+    return "₦" + amount.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function validImage(value) {
+    if (!value) return "";
+
+    try {
+      const url = new URL(value, window.location.href);
+
+      if (
+        url.protocol !== "https:" &&
+        url.protocol !== "http:"
+      ) {
+        return "";
+      }
+
+      return url.href;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getStoreName(product) {
+    return String(
+      product.store_name ||
+      product.store ||
+      "Independent Seller"
+    ).trim() || "Independent Seller";
+  }
+
+  function setStoreHeading(name, count) {
+    document.title = name + " | Edesvino Marketplace";
+
+    document.getElementById("headerStoreName").textContent = name;
+    document.getElementById("storeName").textContent = name;
+
+    document.getElementById("productCount").textContent =
+      count + (count === 1 ? " product" : " products");
+  }
+
+  function readCart() {
+    try {
+      const items = JSON.parse(
+        localStorage.getItem(CART_KEY) || "[]"
+      );
+
+      if (!Array.isArray(items)) return [];
+
+      return items.filter(function (item) {
+        return item &&
+          item.id !== undefined &&
+          typeof item.name === "string" &&
+          Number.isFinite(Number(item.price)) &&
+          Number(item.price) >= 0 &&
+          Number.isInteger(Number(item.quantity)) &&
+          Number(item.quantity) > 0;
+      }).map(function (item) {
+        return {
+          id: String(item.id),
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity)
+        };
+      });
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function addToCart(product, button) {
+    const id = String(product.id ?? "");
+    const name = String(product.name ?? "").trim();
+    const price = Number(product.price);
+
+    if (!id || !name || !Number.isFinite(price) || price < 0) {
+      statusBox.textContent =
+        "This product has incomplete information and could not be added.";
+      return;
+    }
+
+    try {
+      const cart = readCart();
+      const existing = cart.find(function (item) {
+        return item.id === id;
+      });
+
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({
+          id: id,
+          name: name,
+          price: price,
+          quantity: 1
+        });
+      }
+
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+
+      button.textContent = "Added to Cart";
+      statusBox.textContent =
+        name + " was added to your cart.";
+
+    } catch (error) {
+      statusBox.textContent =
+        "Could not save your cart. Please check your browser settings.";
+    }
+  }
+
+  function renderProducts(products) {
+    productsBox.replaceChildren();
+
+    products.forEach(function (product) {
+      const card = document.createElement("article");
+      card.className = "product";
+
+      const imageUrl = validImage(product.image_url);
+
+      const imageMarkup = imageUrl
+        ? '<img src="' + safe(imageUrl) +
+          '" alt="' + safe(product.name || "Product") +
+          '" loading="lazy">'
+        : '<div class="no-image">No product image available</div>';
+
+      card.innerHTML = `
+        ${imageMarkup}
+
+        <div class="product-info">
+          <h3>${safe(product.name || "Unnamed product")}</h3>
+
+          <p class="price">${money(product.price)}</p>
+
+          <p class="description">${
+            safe(product.description || "No description available.")
+          }</p>
+
+          <a class="button secondary"
+             href="./product-details.html?id=${
+               encodeURIComponent(String(product.id))
+             }">
+            View Product Details
+          </a>
+
+          <button class="button add-button" type="button">
+            Add to Cart
+          </button>
+        </div>
+      `;
+
+      card.querySelector(".add-button").addEventListener(
+        "click",
+        function () {
+          addToCart(product, this);
+        }
+      );
+
+      productsBox.appendChild(card);
+    });
+  }
+
+  async function loadStore() {
+    if (!requestedSellerId && !requestedStoreName) {
+      statusBox.textContent =
+        "No seller was selected. Open Seller Stores and choose a store to view its products.";
+
+      document.getElementById("storeDescription").textContent =
+        "Select a seller from the Seller Stores page to browse their products.";
+
+      document.getElementById("productCount").textContent =
+        "No store selected";
+
+      return;
+    }
+
+    statusBox.textContent = "Loading products for this store...";
+
+    try {
+      let query = client
+        .from("products")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (requestedSellerId) {
+        query = query.eq("seller_id", requestedSellerId);
+      } else {
+        query = query.eq("store", requestedStoreName);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const products = data || [];
+
+      if (products.length === 0) {
+        setStoreHeading(
+          requestedStoreName || "Seller Store",
+          0
+        );
+
+        document.getElementById("storeDescription").textContent =
+          "No products were found for this store. The store name or seller ID may be incorrect.";
+
+        statusBox.textContent =
+          "No products were returned for this store.";
+
+        return;
+      }
+
+      const storeName = getStoreName(products[0]);
+
+      setStoreHeading(storeName, products.length);
+
+      document.getElementById("storeDescription").textContent =
+        "Explore " + products.length +
+        (products.length === 1
+          ? " product available from "
+          : " products available from ") +
+        storeName + ".";
+
+      renderProducts(products);
+
+      statusBox.textContent =
+        "Store loaded successfully. " +
+        products.length + " product(s) are available to browse.";
+
+    } catch (error) {
+      console.error("Seller store error:", error);
+
+      statusBox.textContent =
+        "The store could not be loaded. Please try again later. " +
+        "No existing marketplace data has been changed.";
+    }
+  }
+
+  loadStore();
+
+})();
+</script>
+
+</body>
+</html>
