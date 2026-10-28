@@ -12,17 +12,16 @@
 body{font-family:Arial,sans-serif;background:#f3f6f4;color:#222;margin:0;padding:14px}
 .container{max-width:900px;margin:auto}
 header{background:#064e3b;color:white;padding:20px;border-radius:12px;margin-bottom:15px}
-header h1{margin:0 0 8px;font-size:24px}
-nav{margin-top:12px}
+header h1{font-size:24px}
 nav a{color:white;display:inline-block;margin:5px 12px 0 0}
 .card{background:white;padding:18px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 8px #0000000d}
 button,select,textarea{font:inherit;padding:12px;border-radius:7px;border:1px solid #ccc;width:100%;margin-top:8px}
-button{background:#087443;color:white;border:0;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.6;cursor:wait}
+button{background:#087443;color:white;border:0;font-weight:bold;cursor:pointer;min-height:48px}
+button:disabled{opacity:.6}
 .secondary{background:#374151}
 label{display:block;margin-top:12px;font-weight:bold}
-small{color:#555}
-.status{display:inline-block;background:#fef3c7;padding:5px 9px;border-radius:6px;font-weight:bold}
+small{color:#555;overflow-wrap:anywhere}
+.status{display:inline-block;background:#fef3c7;padding:5px 9px;border-radius:6px}
 .message{padding:12px;border-radius:7px;margin-top:10px;overflow-wrap:anywhere;line-height:1.5}
 .error{background:#fee2e2;color:#991b1b}
 .success{background:#dcfce7;color:#166534}
@@ -48,39 +47,36 @@ footer{text-align:center;color:#555;padding:18px}
 
 <section class="card">
 <h2>Administrator Account</h2>
-<p id="account">Checking sign-in...</p>
-<button id="loginButton" class="secondary" hidden type="button">
+<p id="account">Starting page...</p>
+<button id="loginButton" class="secondary" type="button"
+onclick="window.location.href='customer-login.html'" hidden>
 Sign In
 </button>
-<button id="refreshButton" type="button" hidden>
+<button id="refreshButton" type="button" onclick="refreshComplaints()" hidden>
 Refresh Complaints
 </button>
-<div id="message" role="status" aria-live="polite"></div>
+<div id="message" class="message" role="status" aria-live="polite"></div>
 </section>
 
 <section class="card">
 <h2>Customer Complaints</h2>
 <p>Review a complaint and update its status or response.</p>
-<div id="complaints">Loading complaints...</div>
+<div id="complaints">Starting complaint list...</div>
 </section>
 
 <footer>Edesvino Marketplace · Owner Complaint Management</footer>
 </div>
 
 <script>
-(function(){
 "use strict";
 
-const SUPABASE_URL =
-"https://lxszilqypuglxyfyukdg.supabase.co";
+const SUPABASE_URL = "https://lxszilqypuglxyfyukdg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
 
-const SUPABASE_KEY =
-"sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
-
-const db = window.supabase.createClient(
-SUPABASE_URL,
-SUPABASE_KEY
-);
+let db = null;
+let currentUser = null;
+let isAdmin = false;
+let complaintRows = [];
 
 const accountEl = document.getElementById("account");
 const messageEl = document.getElementById("message");
@@ -88,286 +84,258 @@ const complaintsEl = document.getElementById("complaints");
 const refreshButton = document.getElementById("refreshButton");
 const loginButton = document.getElementById("loginButton");
 
-let currentUser = null;
-let isAdmin = false;
-let complaintRows = [];
-
 function showMessage(text,type){
-messageEl.className = "message " + type;
-messageEl.textContent = text;
-}
-
-function clearMessage(){
-messageEl.className = "";
-messageEl.textContent = "";
+  messageEl.className = "message " + (type || "");
+  messageEl.textContent = text;
 }
 
 function escapeHTML(value){
-return String(value ?? "").replace(/[&<>"']/g,function(c){
-return {
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#39;"
-}[c];
-});
+  return String(value ?? "").replace(/[&<>"']/g,function(c){
+    return {
+      "&":"&amp;","<":"&lt;",">":"&gt;",
+      '"':"&quot;","'":"&#39;"
+    }[c];
+  });
 }
 
 function prettyCategory(value){
-const labels = {
-damaged_item:"Item arrived damaged",
-wrong_item:"Wrong item received",
-missing_item:"Item missing from order",
-delivery_problem:"Delivery problem",
-refund_request:"Refund request",
-other:"Other"
-};
-return labels[value] || value || "Not specified";
+  const labels = {
+    damaged_item:"Item arrived damaged",
+    wrong_item:"Wrong item received",
+    missing_item:"Item missing from order",
+    delivery_problem:"Delivery problem",
+    refund_request:"Refund request",
+    other:"Other"
+  };
+  return labels[value] || value || "Not specified";
 }
 
 function prettyDate(value){
-if(!value) return "Not available";
-const date = new Date(value);
-return Number.isNaN(date.getTime())
-? "Not available"
-: date.toLocaleString();
+  if(!value) return "Not available";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "Not available" : d.toLocaleString();
 }
 
 async function checkAdmin(){
-const {data,error} = await db.auth.getUser();
+  const result = await db.auth.getUser();
+  if(result.error) throw result.error;
 
-if(error) throw error;
+  if(!result.data.user){
+    currentUser = null;
+    isAdmin = false;
+    accountEl.textContent = "Please sign in to continue.";
+    loginButton.hidden = false;
+    refreshButton.hidden = true;
+    complaintsEl.textContent = "Sign in, then return to this page.";
+    return false;
+  }
 
-if(!data.user){
-currentUser = null;
-isAdmin = false;
-accountEl.textContent = "You must sign in to continue.";
-loginButton.hidden = false;
-refreshButton.hidden = true;
-complaintsEl.textContent = "Please sign in and return to this page.";
-return false;
+  currentUser = result.data.user;
+  accountEl.textContent = "Signed in as " + (currentUser.email || "");
+
+  const adminResult = await db
+    .from("platform_admins")
+    .select("user_id")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if(adminResult.error) throw adminResult.error;
+
+  if(!adminResult.data){
+    isAdmin = false;
+    loginButton.hidden = true;
+    refreshButton.hidden = true;
+    accountEl.textContent += " — administrator access not confirmed.";
+    complaintsEl.textContent = "Access denied: this account is not a platform administrator.";
+    return false;
+  }
+
+  isAdmin = true;
+  loginButton.hidden = true;
+  refreshButton.hidden = false;
+  return true;
 }
 
-currentUser = data.user;
-accountEl.textContent = "Signed in as " + (currentUser.email || "");
+async function refreshComplaints(){
+  refreshButton.disabled = true;
+  refreshButton.textContent = "Refreshing...";
+  showMessage("Refreshing complaints...","success");
 
-const {data:adminRecord,error:adminError} = await db
-.from("platform_admins")
-.select("user_id")
-.eq("user_id",currentUser.id)
-.maybeSingle();
+  try{
+    if(!db){
+      throw new Error("The Supabase library did not load. Check your internet connection and reload the page.");
+    }
 
-if(adminError) throw adminError;
+    const allowed = await checkAdmin();
+    if(!allowed){
+      showMessage("Please check the administrator account message above.","error");
+      return;
+    }
 
-if(!adminRecord){
-isAdmin = false;
-accountEl.textContent += " — administrator access not confirmed.";
-complaintsEl.textContent =
-"Access denied. This account is not listed as a platform administrator.";
-refreshButton.hidden = true;
-return false;
+    complaintsEl.textContent = "Loading complaints...";
+
+    const result = await db
+      .from("order_disputes")
+      .select("id,order_id,customer_id,seller_id,complaint_category,complaint_description,status,admin_response,created_at,updated_at,resolved_at")
+      .order("created_at",{ascending:false});
+
+    if(result.error) throw result.error;
+
+    complaintRows = result.data || [];
+
+    if(!complaintRows.length){
+      complaintsEl.textContent = "No customer complaints have been submitted yet.";
+      showMessage("Complaint list refreshed. No complaints found.","success");
+      return;
+    }
+
+    complaintsEl.innerHTML = complaintRows.map(function(item){
+      const id = Number(item.id);
+      const safeId = escapeHTML(id);
+
+      return `
+      <article class="complaint" data-id="${safeId}">
+        <h3>Complaint #${safeId} · Order #${escapeHTML(item.order_id)}</h3>
+        <p><strong>Status:</strong> <span class="status">${escapeHTML(item.status)}</span></p>
+        <p><strong>Reason:</strong> ${escapeHTML(prettyCategory(item.complaint_category))}</p>
+        <p><strong>Submitted:</strong> ${escapeHTML(prettyDate(item.created_at))}</p>
+        <p><strong>Last updated:</strong> ${escapeHTML(prettyDate(item.updated_at))}</p>
+        <p><strong>Customer ID:</strong><br><small>${escapeHTML(item.customer_id)}</small></p>
+        <p><strong>Complaint details:</strong></p>
+        <div class="description">${escapeHTML(item.complaint_description)}</div>
+
+        <label for="status-${safeId}">Update status</label>
+        <select id="status-${safeId}">
+          <option value="open" ${item.status==="open"?"selected":""}>Open</option>
+          <option value="under_review" ${item.status==="under_review"?"selected":""}>Under Review</option>
+          <option value="resolved" ${item.status==="resolved"?"selected":""}>Resolved</option>
+          <option value="rejected" ${item.status==="rejected"?"selected":""}>Rejected</option>
+        </select>
+
+        <label for="response-${safeId}">Administrator response</label>
+        <textarea id="response-${safeId}" rows="4" maxlength="3000"
+        placeholder="Write a response the customer can read...">${escapeHTML(item.admin_response || "")}</textarea>
+
+        <button type="button" onclick="saveComplaint(${id},this)">
+          Save Status and Response
+        </button>
+        <div class="save-result" role="status" aria-live="polite"></div>
+      </article>`;
+    }).join("");
+
+    showMessage("Complaints refreshed successfully.","success");
+
+  }catch(error){
+    console.error("Complaint refresh error:",error);
+    showMessage("REFRESH FAILED: " + (error.message || "Unknown error."),"error");
+    if(complaintsEl.textContent === "Loading complaints..."){
+      complaintsEl.textContent = "Unable to load complaints. Read the error message above.";
+    }
+  }finally{
+    refreshButton.disabled = false;
+    refreshButton.textContent = "Refresh Complaints";
+  }
 }
 
-isAdmin = true;
-loginButton.hidden = true;
-refreshButton.hidden = false;
-return true;
+async function saveComplaint(id,button){
+  const card = button.closest(".complaint");
+  const resultEl = card.querySelector(".save-result");
+  const statusEl = card.querySelector("select");
+  const responseEl = card.querySelector("textarea");
+
+  function report(text,type){
+    resultEl.className = "save-result message " + type;
+    resultEl.textContent = text;
+  }
+
+  button.disabled = true;
+  button.textContent = "Saving...";
+  report("Saving changes...","success");
+
+  try{
+    if(!db) throw new Error("Supabase did not load. Reload the page and try again.");
+
+    if(!currentUser || !isAdmin){
+      const allowed = await checkAdmin();
+      if(!allowed) throw new Error("Administrator access is required.");
+    }
+
+    const auth = await db.auth.getUser();
+    if(auth.error) throw auth.error;
+    if(!auth.data.user || auth.data.user.id !== currentUser.id){
+      throw new Error("Your sign-in session has expired. Sign in again.");
+    }
+
+    const newStatus = statusEl.value;
+    const response = responseEl.value.trim();
+
+    if(!["open","under_review","resolved","rejected"].includes(newStatus)){
+      throw new Error("Please select a valid status.");
+    }
+    if(newStatus === "resolved" && !response){
+      throw new Error("Enter an administrator response before resolving this complaint.");
+    }
+
+    const oldItem = complaintRows.find(function(row){
+      return Number(row.id) === Number(id);
+    });
+
+    const updates = {
+      status:newStatus,
+      admin_response:response || null,
+      resolved_at:newStatus === "resolved"
+        ? ((oldItem && oldItem.resolved_at) || new Date().toISOString())
+        : null
+    };
+
+    const result = await db
+      .from("order_disputes")
+      .update(updates)
+      .eq("id",id)
+      .select("id,status,admin_response,updated_at,resolved_at")
+      .maybeSingle();
+
+    if(result.error) throw result.error;
+    if(!result.data){
+      throw new Error("No updated record was returned. Check administrator UPDATE permissions.");
+    }
+
+    report("Saved successfully! Complaint #" + id + " was updated.","success");
+    showMessage("Complaint #" + id + " saved successfully.","success");
+
+    await refreshComplaints();
+
+  }catch(error){
+    console.error("Complaint save error:",error);
+    report("SAVE FAILED: " + (error.message || "Unknown error."),"error");
+    showMessage("Complaint could not be saved: " + (error.message || "Unknown error."),"error");
+  }finally{
+    button.disabled = false;
+    button.textContent = "Save Status and Response";
+  }
 }
 
-async function loadComplaints(){
-clearMessage();
+window.refreshComplaints = refreshComplaints;
+window.saveComplaint = saveComplaint;
 
-try{
-const allowed = await checkAdmin();
-if(!allowed) return;
+async function startPage(){
+  try{
+    if(!window.supabase || !window.supabase.createClient){
+      throw new Error("Supabase JavaScript failed to load. Check your connection or browser.");
+    }
 
-complaintsEl.textContent = "Loading complaints...";
+    db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    await refreshComplaints();
 
-const {data,error} = await db
-.from("order_disputes")
-.select("id,order_id,customer_id,seller_id,complaint_category,complaint_description,status,admin_response,created_at,updated_at,resolved_at")
-.order("created_at",{ascending:false});
-
-if(error) throw error;
-
-complaintRows = data || [];
-
-if(!complaintRows.length){
-complaintsEl.textContent = "No customer complaints have been submitted yet.";
-return;
+  }catch(error){
+    console.error("Complaint page startup error:",error);
+    accountEl.textContent = "Page startup failed.";
+    showMessage(error.message || "Unable to start the complaint page.","error");
+    complaintsEl.textContent = "Unable to start complaint management.";
+  }
 }
 
-complaintsEl.innerHTML = complaintRows.map(function(item){
-const id = escapeHTML(item.id);
-
-return `
-<article class="complaint" data-complaint-id="${id}">
-<h3>Complaint #${id} · Order #${escapeHTML(item.order_id)}</h3>
-
-<p><strong>Status:</strong>
-<span class="status">${escapeHTML(item.status)}</span></p>
-
-<p><strong>Reason:</strong>
-${escapeHTML(prettyCategory(item.complaint_category))}</p>
-
-<p><strong>Submitted:</strong>
-${escapeHTML(prettyDate(item.created_at))}</p>
-
-<p><strong>Last updated:</strong>
-${escapeHTML(prettyDate(item.updated_at))}</p>
-
-<p><strong>Customer ID:</strong><br>
-<small>${escapeHTML(item.customer_id)}</small></p>
-
-<p><strong>Complaint details:</strong></p>
-<div class="description">${escapeHTML(item.complaint_description)}</div>
-
-<label for="status-${id}">Update status</label>
-<select id="status-${id}">
-<option value="open" ${item.status==="open"?"selected":""}>Open</option>
-<option value="under_review" ${item.status==="under_review"?"selected":""}>Under Review</option>
-<option value="resolved" ${item.status==="resolved"?"selected":""}>Resolved</option>
-<option value="rejected" ${item.status==="rejected"?"selected":""}>Rejected</option>
-</select>
-
-<label for="response-${id}">Administrator response</label>
-<textarea id="response-${id}" rows="4" maxlength="3000"
-placeholder="Write a response the customer can read...">${escapeHTML(item.admin_response || "")}</textarea>
-
-<button type="button" class="save-complaint" data-id="${id}">
-Save Status and Response
-</button>
-
-<div class="save-result" role="status" aria-live="polite"></div>
-</article>`;
-}).join("");
-
-}catch(error){
-complaintsEl.textContent = "Unable to load complaints.";
-showMessage("Error: " + (error.message || "Please try again."),"error");
-}
-}
-
-/* Attach one click handler to the complaints area. */
-complaintsEl.addEventListener("click",async function(event){
-const button = event.target.closest(".save-complaint");
-if(!button) return;
-
-event.preventDefault();
-
-const id = Number(button.dataset.id);
-const card = button.closest(".complaint");
-const resultEl = card.querySelector(".save-result");
-const statusEl = card.querySelector("select");
-const responseEl = card.querySelector("textarea");
-
-function report(text,type){
-resultEl.className = "save-result message " + type;
-resultEl.textContent = text;
-}
-
-if(!Number.isSafeInteger(id) || id <= 0){
-report("Invalid complaint ID. Refresh the page.","error");
-return;
-}
-
-if(!currentUser || !isAdmin){
-report("Administrator access is required. Refresh and sign in again.","error");
-return;
-}
-
-const newStatus = statusEl.value;
-const response = responseEl.value.trim();
-
-if(!["open","under_review","resolved","rejected"].includes(newStatus)){
-report("Please select a valid status.","error");
-return;
-}
-
-if(newStatus === "resolved" && !response){
-report("Enter an administrator response before resolving this complaint.","error");
-return;
-}
-
-button.disabled = true;
-button.textContent = "Saving...";
-report("Saving your changes...","success");
-
-try{
-/* Confirm the current sign-in session before updating. */
-const {data:authData,error:authError} = await db.auth.getUser();
-
-if(authError) throw authError;
-
-if(!authData.user || authData.user.id !== currentUser.id){
-throw new Error("Your sign-in session has expired. Please sign in again.");
-}
-
-/* Confirm that administrator access is still present. */
-const {data:adminRecord,error:adminError} = await db
-.from("platform_admins")
-.select("user_id")
-.eq("user_id",currentUser.id)
-.maybeSingle();
-
-if(adminError) throw adminError;
-
-if(!adminRecord){
-throw new Error("Your account is not listed as a platform administrator.");
-}
-
-const oldItem = complaintRows.find(function(row){
-return Number(row.id) === id;
-});
-
-const updates = {
-status:newStatus,
-admin_response:response || null,
-resolved_at:newStatus === "resolved"
-? ((oldItem && oldItem.resolved_at) || new Date().toISOString())
-: null
-};
-
-const {data,error} = await db
-.from("order_disputes")
-.update(updates)
-.eq("id",id)
-.select("id,status,admin_response,updated_at,resolved_at")
-.maybeSingle();
-
-if(error) throw error;
-
-if(!data){
-throw new Error("Supabase did not return an updated complaint. Check the database UPDATE policy.");
-}
-
-report("Saved successfully! Complaint #" + id + " has been updated.","success");
-showMessage("Complaint #" + id + " saved successfully.","success");
-
-/* Refresh the complaint list after displaying the save result. */
-await loadComplaints();
-
-}catch(error){
-console.error("Complaint save error:",error);
-report("SAVE FAILED: " + (error.message || "Unknown error. Check your connection."),"error");
-showMessage("Complaint could not be saved: " + (error.message || "Unknown error."),"error");
-
-}finally{
-button.disabled = false;
-button.textContent = "Save Status and Response";
-}
-});
-
-refreshButton.addEventListener("click",loadComplaints);
-
-loginButton.addEventListener("click",function(){
-window.location.href = "customer-login.html";
-});
-
-loadComplaints();
-
-})();
+startPage();
 </script>
 </body>
 </html>
