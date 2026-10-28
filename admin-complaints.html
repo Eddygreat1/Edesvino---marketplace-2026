@@ -306,82 +306,140 @@ async function loadComplaints(){
   `).join("");
 }
 
-async function saveComplaint(id){
+window.saveComplaint = async function saveComplaint(id) {
   clearMessage();
 
-  if(!currentUser || !isAdmin){
-    showMessage("Administrator access is required.","error");
+  if (!currentUser || !isAdmin) {
+    showMessage("Administrator access is required.", "error");
     return;
   }
 
-  const item = complaintRows.find(row => Number(row.id) === Number(id));
-  if(!item){
-    showMessage("Complaint not found. Refresh and try again.","error");
+  const item = complaintRows.find(
+    row => Number(row.id) === Number(id)
+  );
+
+  if (!item) {
+    showMessage(
+      "Complaint not found. Refresh and try again.",
+      "error"
+    );
     return;
   }
 
   const statusEl = document.getElementById("status-" + id);
   const responseEl = document.getElementById("response-" + id);
+
+  if (!statusEl || !responseEl) {
+    showMessage(
+      "Complaint fields not found. Please refresh the page.",
+      "error"
+    );
+    return;
+  }
+
   const newStatus = statusEl.value;
   const response = responseEl.value.trim();
 
-  if(!["open","under_review","resolved","rejected"].includes(newStatus)){
-    showMessage("Please select a valid status.","error");
+  if (!["open", "under_review", "resolved", "rejected"].includes(newStatus)) {
+    showMessage("Please select a valid status.", "error");
     return;
   }
 
-  if(response.length > 3000){
-    showMessage("The response must be 3,000 characters or fewer.","error");
+  if (response.length > 3000) {
+    showMessage(
+      "The response must be 3,000 characters or fewer.",
+      "error"
+    );
     return;
   }
 
-  if(newStatus === "resolved" && !response){
-    showMessage("Please enter an administrator response before resolving a complaint.","error");
+  if (newStatus === "resolved" && !response) {
+    showMessage(
+      "Please enter an administrator response before resolving a complaint.",
+      "error"
+    );
     return;
   }
 
   const buttons = document.querySelectorAll(".complaint button");
   buttons.forEach(button => button.disabled = true);
 
-  const updates = {
-    status:newStatus,
-    admin_response:response || null,
-    updated_at:new Date().toISOString(),
-    resolved_at:newStatus === "resolved"
-      ? (item.resolved_at || new Date().toISOString())
-      : null
-  };
+  try {
+    const updates = {
+      status: newStatus,
+      admin_response: response || null,
+      updated_at: new Date().toISOString(),
+      resolved_at: newStatus === "resolved"
+        ? (item.resolved_at || new Date().toISOString())
+        : null
+    };
 
-  const {data,error} = await supabaseClient
-    .from("order_disputes")
-    .update(updates)
-    .eq("id",id)
-    .select("id,status,admin_response,updated_at,resolved_at")
-    .maybeSingle();
+    const { data, error } = await supabaseClient
+      .from("order_disputes")
+      .update(updates)
+      .eq("id", id)
+      .select("id,status,admin_response,updated_at,resolved_at")
+      .maybeSingle();
 
-  buttons.forEach(button => button.disabled = false);
+    if (error) {
+      showMessage(
+        "Save failed: " + error.message,
+        "error"
+      );
+      return;
+    }
 
-  if(error){
+    if (!data) {
+      showMessage(
+        "No complaint was updated. Check administrator permissions.",
+        "error"
+      );
+      return;
+    }
+
     showMessage(
-      "Could not save this update. Please refresh and try again.",
+      "Complaint #" + id + " updated successfully."
+    );
+
+    await loadComplaints();
+
+  } catch (error) {
+    showMessage(
+      "Unexpected error: " +
+      (error.message || "Please try again."),
       "error"
     );
-    return;
-  }
 
-  if(!data){
+  } finally {
+    buttons.forEach(button => button.disabled = false);
+  }
+};
+
+
+async function startPage() {
+  try {
+    const allowed = await checkAdmin();
+
+    if (allowed) {
+      await loadComplaints();
+    }
+
+  } catch (error) {
+    accountEl.textContent = "Unable to verify account.";
+    complaintsEl.textContent =
+      "Please refresh the page and try again.";
+
     showMessage(
-      "No complaint was updated. Check administrator permissions.",
+      "Account check failed: " +
+      (error.message || "Please try again."),
       "error"
     );
-    return;
   }
-
-  showMessage("Complaint #" + id + " updated successfully.");
-  await loadComplaints();
 }
 
-async function startPage(){
+startPage()
+
+  
   try{
     const allowed = await checkAdmin();
     if(allowed) await loadComplaints();
