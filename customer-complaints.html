@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Customer Complaints</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    font-family: Arial, sans-serif;
+    background: #f3f6f4;
+    color: #222;
+}
+
+.container {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+header {
+    background: #087443;
+    color: white;
+    padding: 22px 16px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0 0 8px;
+    font-size: 25px;
+}
+
+header p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0;
+}
+
+nav a {
+    display: inline-block;
+    background: white;
+    color: #087443;
+    padding: 11px 13px;
+    border-radius: 7px;
+    text-decoration: none;
+    font-weight: bold;
+    border: 1px solid #d5e5dc;
+}
+
+.card {
+    background: white;
+    padding: 18px;
+    margin-bottom: 18px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+h2 {
+    color: #087443;
+    font-size: 20px;
+    margin-top: 0;
+}
+
+label {
+    display: block;
+    margin: 15px 0 7px;
+    font-weight: bold;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5ce;
+    border-radius: 7px;
+    font-size: 16px;
+    background: white;
+}
+
+textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+
+button {
+    border: none;
+    background: #087443;
+    color: white;
+    padding: 13px 17px;
+    border-radius: 7px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+button:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.secondary {
+    background: #555;
+}
+
+.message {
+    padding: 12px;
+    border-radius: 7px;
+    margin-top: 12px;
+    display: none;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.success {
+    display: block;
+    background: #e4f7eb;
+    color: #155d32;
+}
+
+.error {
+    display: block;
+    background: #ffeded;
+    color: #9c2020;
+}
+
+.info {
+    display: block;
+    background: #edf4ff;
+    color: #214f83;
+}
+
+.complaint {
+    border: 1px solid #dce5df;
+    padding: 14px;
+    border-radius: 8px;
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+}
+
+.complaint h3 {
+    margin: 0 0 10px;
+    font-size: 17px;
+}
+
+.complaint p {
+    line-height: 1.5;
+    margin: 8px 0;
+}
+
+.badge {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 15px;
+    background: #e4f7eb;
+    color: #155d32;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.muted {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+footer {
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+    padding: 15px 0;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<header>
+    <h1>Edesvino Customer Support</h1>
+    <p>Submit an order complaint and follow its progress.</p>
+</header>
+
+<nav>
+    <a href="index.html">Marketplace</a>
+    <a href="customer-orders.html">My Orders</a>
+    <a href="seller-stores.html">Seller Stores</a>
+</nav>
+
+<section class="card">
+    <h2>Account</h2>
+    <p id="accountStatus" class="muted">Checking your account...</p>
+
+    <button type="button" id="loginButton" style="display:none">
+        Sign In
+    </button>
+
+    <button type="button" id="refreshButton" class="secondary">
+        Refresh Complaints
+    </button>
+
+    <div id="accountMessage" class="message"></div>
+</section>
+
+<section class="card">
+    <h2>Submit a Complaint</h2>
+
+    <p class="muted">
+        Select your order, choose the problem, and explain what happened.
+        Please provide accurate details so the Edesvino team can investigate.
+    </p>
+
+    <form id="complaintForm">
+
+        <label for="orderSelect">Select Your Order</label>
+        <select id="orderSelect" required>
+            <option value="">Loading your orders...</option>
+        </select>
+
+        <label for="category">Complaint Reason</label>
+        <select id="category" required>
+            <option value="">Choose a reason</option>
+            <option value="damaged_item">Item arrived damaged</option>
+            <option value="wrong_item">Wrong item received</option>
+            <option value="missing_item">Item missing from order</option>
+            <option value="delivery_problem">Delivery problem</option>
+            <option value="refund_request">Refund request</option>
+            <option value="other">Other problem</option>
+        </select>
+
+        <label for="description">Describe the Problem</label>
+        <textarea
+            id="description"
+            minlength="10"
+            maxlength="3000"
+            placeholder="Explain what happened with your order..."
+            required
+        ></textarea>
+
+        <p class="muted">
+            Enter between 10 and 3,000 characters. Submitting a complaint
+            does not automatically approve a refund.
+        </p>
+
+        <button type="submit" id="submitButton">
+            Submit Complaint
+        </button>
+
+        <div id="formMessage" class="message" role="status"></div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>My Complaints</h2>
+
+    <p class="muted">
+        Your submitted complaints and any administrator response will
+        appear here.
+    </p>
+
+    <div id="complaintsList">
+        <p class="muted">Sign in to view your complaints.</p>
+    </div>
+</section>
+
+<footer>
+    Edesvino Marketplace · Customer Support
+</footer>
+
+</div>
+
+<script>
+(function () {
+    "use strict";
+
+    const SUPABASE_URL =
+        "https://lxszilqypuglxyfyukdg.supabase.co";
+
+    const SUPABASE_KEY =
+        "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+    const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+    const accountStatus = document.getElementById("accountStatus");
+    const accountMessage = document.getElementById("accountMessage");
+    const formMessage = document.getElementById("formMessage");
+    const orderSelect = document.getElementById("orderSelect");
+    const complaintsList = document.getElementById("complaintsList");
+    const complaintForm = document.getElementById("complaintForm");
+    const submitButton = document.getElementById("submitButton");
+    const loginButton = document.getElementById("loginButton");
+    const refreshButton = document.getElementById("refreshButton");
+
+    let currentUser = null;
+    let orders = [];
+
+    function showMessage(element, message, type) {
+        element.textContent = message;
+        element.className = "message " + type;
+    }
+
+    function clearMessage(element) {
+        element.textContent = "";
+        element.className = "message";
+    }
+
+    function addOption(select, value, label) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        select.appendChild(option);
+    }
+
+    function formatMoney(amount) {
+        const number = Number(amount);
+
+        if (!Number.isFinite(number)) {
+            return "Amount unavailable";
+        }
+
+        return "₦" + number.toLocaleString("en-NG", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatDate(value) {
+        if (!value) return "Not available";
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return "Not available";
+        }
+
+        return date.toLocaleString("en-NG");
+    }
+
+    function categoryLabel(category) {
+        const labels = {
+            damaged_item: "Damaged item",
+            wrong_item: "Wrong item",
+            missing_item: "Missing item",
+            delivery_problem: "Delivery problem",
+            refund_request: "Refund request",
+            other: "Other"
+        };
+
+        return labels[category] || category || "Not specified";
+    }
+
+    function statusLabel(status) {
+        const labels = {
+            open: "Open",
+            under_review: "Under Review",
+            resolved: "Resolved",
+            rejected: "Rejected"
+        };
+
+        return labels[status] || status || "Unknown";
+    }
+
+    function addComplaintParagraph(parent, label, value) {
+        const paragraph = document.createElement("p");
+        const strong = document.createElement("strong");
+
+        strong.textContent = label + ": ";
+        paragraph.appendChild(strong);
+        paragraph.appendChild(
+            document.createTextNode(
+                value === null || value === undefined || value === ""
+                    ? "Not provided"
+                    : String(value)
+            )
+        );
+
+        parent.appendChild(paragraph);
+    }
+
+    async function loadOrders() {
+        orderSelect.replaceChildren();
+        addOption(orderSelect, "", "Select an order");
+
+        const { data, error } = await supabaseClient
+            .from("orders")
+            .select(
+                "id,product_name,total_amount,status,payment_status,seller_id"
+            )
+            .eq("customer_id", currentUser.id)
+            .order("id", { ascending: false });
+
+        if (error) {
+            console.error("Order loading error:", error);
+            addOption(orderSelect, "", "Unable to load orders");
+            showMessage(
+                formMessage,
+                "We couldn't load your orders. Please refresh and try again.",
+                "error"
+            );
+            return;
+        }
+
+        orders = data || [];
+
+        if (orders.length === 0) {
+            addOption(orderSelect, "", "No orders found");
+            showMessage(
+                formMessage,
+                "No orders are available for this account. Please confirm that you signed in with the account used to place your order.",
+                "info"
+            );
+            return;
+        }
+
+        orders.forEach(function (order) {
+            const name = order.product_name || "Marketplace order";
+            const label =
+                "Order #" + order.id +
+                " — " + name +
+                " — " + formatMoney(order.total_amount) +
+                " — " + (order.status || "Status unavailable");
+
+            addOption(orderSelect, String(order.id), label);
+        });
+    }
+
+    async function loadComplaints() {
+        complaintsList.replaceChildren();
+
+        const loading = document.createElement("p");
+        loading.className = "muted";
+        loading.textContent = "Loading your complaints...";
+        complaintsList.appendChild(loading);
+
+        const { data, error } = await supabaseClient
+            .from("order_disputes")
+            .select(
+                "id,order_id,complaint_category,complaint_description,status,admin_response,created_at,updated_at,resolved_at"
+            )
+            .eq("customer_id", currentUser.id)
+            .order("created_at", { ascending: false });
+
+        complaintsList.replaceChildren();
+
+        if (error) {
+            console.error("Complaint loading error:", error);
+
+            const errorText = document.createElement("p");
+            errorText.className = "muted";
+            errorText.textContent =
+                "We couldn't load your complaints. Please refresh and try again.";
+
+            complaintsList.appendChild(errorText);
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "muted";
+            empty.textContent = "You haven't submitted any complaints yet.";
+            complaintsList.appendChild(empty);
+            return;
+        }
+
+        data.forEach(function (complaint) {
+            const card = document.createElement("article");
+            card.className = "complaint";
+
+            const heading = document.createElement("h3");
+            heading.textContent =
+                "Complaint #" + complaint.id +
+                " · Order #" + complaint.order_id;
+
+            card.appendChild(heading);
+
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = statusLabel(complaint.status);
+            card.appendChild(badge);
+
+            addComplaintParagraph(
+                card,
+                "Reason",
+                categoryLabel(complaint.complaint_category)
+            );
+
+            addComplaintParagraph(
+                card,
+                "Description",
+                complaint.complaint_description
+            );
+
+            addComplaintParagraph(
+                card,
+                "Submitted",
+                formatDate(complaint.created_at)
+            );
+
+            addComplaintParagraph(
+                card,
+                "Last updated",
+                formatDate(complaint.updated_at)
+            );
+
+            addComplaintParagraph(
+                card,
+                "Administrator response",
+                complaint.admin_response || "Awaiting a response."
+            );
+
+            if (complaint.resolved_at) {
+                addComplaintParagraph(
+                    card,
+                    "Resolution date",
+                    formatDate(complaint.resolved_at)
+                );
+            }
+
+            complaintsList.appendChild(card);
+        });
+    }
+
+    async function refreshPage() {
+        clearMessage(formMessage);
+        clearMessage(accountMessage);
+
+        const { data, error } = await supabaseClient.auth.getUser();
+
+        if (error || !data || !data.user) {
+            currentUser = null;
+
+            accountStatus.textContent =
+                "You are not signed in. Sign in to submit or view complaints.";
+
+            loginButton.style.display = "inline-block";
+            complaintForm.style.display = "block";
+            submitButton.disabled = true;
+
+            orderSelect.replaceChildren();
+            addOption(orderSelect, "", "Sign in to load your orders");
+
+            complaintsList.replaceChildren();
+
+            const message = document.createElement("p");
+            message.className = "muted";
+            message.textContent =
+                "Please sign in to the same Edesvino account used to place your order.";
+
+            complaintsList.appendChild(message);
+            return;
+        }
+
+        currentUser = data.user;
+        loginButton.style.display = "none";
+        submitButton.disabled = false;
+
+        accountStatus.textContent =
+            "Signed in as " + (currentUser.email || "your Edesvino account");
+
+        await loadOrders();
+        await loadComplaints();
+    }
+
+    loginButton.addEventListener("click", function () {
+        window.location.href = "customer-login.html";
+    });
+
+    refreshButton.addEventListener("click", async function () {
+        refreshButton.disabled = true;
+
+        try {
+            await refreshPage();
+        } finally {
+            refreshButton.disabled = false;
+        }
+    });
+
+    complaintForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        clearMessage(formMessage);
+
+        if (!currentUser) {
+            showMessage(
+                formMessage,
+                "Please sign in before submitting a complaint.",
+                "error"
+            );
+            return;
+        }
+
+        const selectedOrderId = orderSelect.value;
+        const category = document.getElementById("category").value;
+        const description =
+            document.getElementById("description").value.trim();
+
+        if (!selectedOrderId) {
+            showMessage(
+                formMessage,
+                "Please select an order.",
+                "error"
+            );
+            return;
+        }
+
+        if (!category) {
+            showMessage(
+                formMessage,
+                "Please choose a complaint reason.",
+                "error"
+            );
+            return;
+        }
+
+        if (description.length < 10 || description.length > 3000) {
+            showMessage(
+                formMessage,
+                "Your description must contain between 10 and 3,000 characters.",
+                "error"
+            );
+            return;
+        }
+
+        const selectedOrder = orders.find(function (order) {
+            return String(order.id) === selectedOrderId;
+        });
+
+        if (!selectedOrder) {
+            showMessage(
+                formMessage,
+                "We couldn't verify that order. Refresh the page and try again.",
+                "error"
+            );
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = "Submitting...";
+
+        try {
+            const { data: authData, error: authError } =
+                await supabaseClient.auth.getUser();
+
+            if (
+                authError ||
+                !authData ||
+                !authData.user ||
+                authData.user.id !== currentUser.id
+            ) {
+                throw new Error(
+                    "Your sign-in session needs refreshing. Please sign in again."
+                );
+            }
+
+            const complaint = {
+                order_id: selectedOrder.id,
+                customer_id: currentUser.id,
+                seller_id: selectedOrder.seller_id,
+                complaint_category: category,
+                complaint_description: description,
+                status: "open",
+                admin_response: null,
+                resolved_at: null
+            };
+
+            const { error } = await supabaseClient
+                .from("order_disputes")
+                .insert(complaint);
+
+            if (error) {
+                console.error("Complaint submission error:", error);
+                throw new Error(
+                    "Your complaint could not be submitted. Please try again. If the problem continues, contact Edesvino support."
+                );
+            }
+
+            complaintForm.reset();
+
+            showMessage(
+                formMessage,
+                "Your complaint has been submitted successfully. Its status is Open. You can track updates in My Complaints below.",
+                "success"
+            );
+
+            await loadComplaints();
+
+        } catch (error) {
+            showMessage(
+                formMessage,
+                error.message || "Something went wrong. Please try again.",
+                "error"
+            );
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "Submit Complaint";
+        }
+    });
+
+    refreshPage().catch(function (error) {
+        console.error("Page initialization error:", error);
+
+        accountStatus.textContent =
+            "We couldn't load your account information. Please refresh the page.";
+    });
+})();
+</script>
+
+</body>
+</html>
