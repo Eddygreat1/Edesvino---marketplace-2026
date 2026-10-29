@@ -229,6 +229,48 @@
     const cartCountBox = document.getElementById("cartCount");
     const cartNotice = document.getElementById("cartNotice");
 
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
+async function loadUnreadNotificationCount() {
+  const countBox = document.getElementById("notificationCount");
+  if (!countBox) return;
+
+  try {
+    const { data: authData, error: authError } =
+      await supabaseClient.auth.getUser();
+
+    if (authError || !authData.user) {
+      countBox.textContent = "";
+      return;
+    }
+
+    const { count, error } = await supabaseClient
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", authData.user.id)
+      .eq("is_read", false);
+
+    if (error) throw error;
+
+    countBox.textContent =
+      count > 0 ? "(" + count + " unread)" : "(0)";
+  } catch (error) {
+    console.error("Notification count could not be loaded:", error);
+    countBox.textContent = "";
+  }
+}
+
+
+
+
+    
+
+
+    
     function safeText(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;",
