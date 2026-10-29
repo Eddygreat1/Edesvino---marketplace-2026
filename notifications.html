@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>My Notifications | Edesvino</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+    }
+
+    header p {
+      margin: 0;
+    }
+
+    main {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px 16px;
+    }
+
+    .panel {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px #0000000d;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    button,
+    .link-button {
+      display: inline-block;
+      padding: 12px 15px;
+      border: 0;
+      border-radius: 7px;
+      background: #111827;
+      color: white;
+      font-size: 15px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .green {
+      background: #047857;
+    }
+
+    .notice {
+      padding: 12px;
+      border-radius: 8px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      overflow-wrap: anywhere;
+    }
+
+    .notification {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .notification.unread {
+      border-left: 5px solid #047857;
+      background: #f0fdf4;
+    }
+
+    .notification h3 {
+      margin: 0 0 8px;
+    }
+
+    .notification p {
+      line-height: 1.5;
+      margin: 8px 0;
+      white-space: pre-wrap;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #d1fae5;
+      color: #065f46;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .empty {
+      padding: 25px 10px;
+      text-align: center;
+      color: #6b7280;
+    }
+
+    footer {
+      text-align: center;
+      padding: 25px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🔔 Edesvino Notifications</h1>
+    <p>Your marketplace updates in one place.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>My Notifications</h2>
+
+      <p id="accountInfo" class="muted">
+        Checking your account...
+      </p>
+
+      <div class="actions">
+        <button type="button" id="refreshButton">
+          Refresh Notifications
+        </button>
+
+        <a class="link-button green" href="./index.html">
+          Back to Marketplace
+        </a>
+
+        <a class="link-button" href="./customer-orders.html">
+          My Orders
+        </a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <p id="status" class="notice" aria-live="polite">
+        Connecting securely...
+      </p>
+
+      <p id="summary" class="muted"></p>
+
+      <div id="notificationsList"></div>
+    </section>
+  </main>
+
+  <footer>
+    Edesvino Marketplace &copy; 2026
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL =
+      "https://lxszilqypuglxyfyukdg.supabase.co";
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      "sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+    const accountInfo = document.getElementById("accountInfo");
+    const statusBox = document.getElementById("status");
+    const summaryBox = document.getElementById("summary");
+    const notificationsList =
+      document.getElementById("notificationsList");
+    const refreshButton = document.getElementById("refreshButton");
+
+    let supabaseClient = null;
+    let currentUser = null;
+
+    function safeText(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[character]);
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return "Date unavailable";
+      }
+
+      return date.toLocaleString("en-NG", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      });
+    }
+
+    function showMessage(message, isError = false) {
+      statusBox.textContent = message;
+      statusBox.style.background = isError ? "#fef2f2" : "#eff6ff";
+      statusBox.style.color = isError ? "#b91c1c" : "#1d4ed8";
+    }
+
+    async function loadNotifications() {
+      if (!supabaseClient || !currentUser) {
+        showMessage(
+          "Please sign in using your existing Edesvino account.",
+          true
+        );
+        return;
+      }
+
+      refreshButton.disabled = true;
+      notificationsList.replaceChildren();
+      summaryBox.textContent = "";
+      showMessage("Loading your notifications...");
+
+      try {
+        const { data, error } = await supabaseClient
+          .from("notifications")
+          .select(
+            "id, title, message, notification_type, is_read, created_at"
+          )
+          .eq("user_id", currentUser.id)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data || data.length === 0) {
+          showMessage("Your notification page is working.");
+          summaryBox.textContent = "Unread notifications: 0";
+
+          notificationsList.innerHTML = `
+            <div class="empty">
+              <h3>No notifications yet</h3>
+              <p>
+                Notifications will appear here when marketplace
+                events are connected to this feature.
+              </p>
+            </div>
+          `;
+
+          return;
+        }
+
+        const unreadCount = data.filter(
+          notification => !notification.is_read
+        ).length;
+
+        summaryBox.textContent =
+          "Total notifications: " + data.length +
+          " | Unread: " + unreadCount;
+
+        data.forEach(notification => {
+          const card = document.createElement("article");
+
+          card.className = notification.is_read
+            ? "notification"
+            : "notification unread";
+
+          const heading = document.createElement("h3");
+          heading.textContent = notification.title || "Notification";
+
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = notification.is_read
+            ? "Read"
+            : "Unread";
+
+          const message = document.createElement("p");
+          message.textContent = notification.message || "";
+
+          const type = document.createElement("p");
+          type.className = "muted";
+          type.textContent =
+            "Type: " +
+            (notification.notification_type || "general");
+
+          const date = document.createElement("p");
+          date.className = "muted";
+          date.textContent = formatDate(notification.created_at);
+
+          card.appendChild(heading);
+          card.appendChild(badge);
+          card.appendChild(message);
+          card.appendChild(type);
+          card.appendChild(date);
+
+          if (!notification.is_read) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "green";
+            button.textContent = "Mark as Read";
+
+            button.addEventListener("click", async () => {
+              await markAsRead(notification.id, button);
+            });
+
+            card.appendChild(button);
+          }
+
+          notificationsList.appendChild(card);
+        });
+
+        showMessage("Your notifications loaded successfully.");
+      } catch (error) {
+        console.error("Notification loading error:", error);
+
+        showMessage(
+          "Notifications could not be loaded. Please check your " +
+          "internet connection and confirm the notifications " +
+          "table and its access policies.",
+          true
+        );
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    async function markAsRead(notificationId, button) {
+      button.disabled = true;
+      button.textContent = "Updating...";
+
+      try {
+        const { data, error } = await supabaseClient
+          .from("notifications")
+          .update({ is_read: true })
+          .eq("id", notificationId)
+          .eq("user_id", currentUser.id)
+          .select("id");
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data || data.length === 0) {
+          throw new Error(
+            "The notification could not be updated."
+          );
+        }
+
+        await loadNotifications();
+      } catch (error) {
+        console.error("Mark as read error:", error);
+
+        showMessage(
+          "Could not mark this notification as read. Please try again.",
+          true
+        );
+
+        button.disabled = false;
+        button.textContent = "Mark as Read";
+      }
+    }
+
+    async function initialise() {
+      if (!window.supabase) {
+        accountInfo.textContent = "Connection unavailable.";
+
+        showMessage(
+          "The connection library could not load. Check your internet.",
+          true
+        );
+
+        refreshButton.disabled = true;
+        return;
+      }
+
+      try {
+        supabaseClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY
+        );
+
+        const { data, error } =
+          await supabaseClient.auth.getUser();
+
+        if (error || !data.user) {
+          currentUser = null;
+          accountInfo.textContent = "You are not signed in.";
+
+          showMessage(
+            "Please sign in first, then return to this page.",
+            true
+          );
+
+          notificationsList.innerHTML = `
+            <div class="empty">
+              <p>Sign in with your existing Edesvino account.</p>
+              <a class="link-button green"
+                 href="./customer-login.html">
+                Customer Login
+              </a>
+              <a class="link-button"
+                 href="./seller-dashboard.html">
+                Seller Dashboard
+              </a>
+            </div>
+          `;
+
+          refreshButton.disabled = true;
+          return;
+        }
+
+        currentUser = data.user;
+
+        accountInfo.textContent =
+          "Signed in as " + currentUser.email;
+
+        await loadNotifications();
+      } catch (error) {
+        console.error("Account check error:", error);
+
+        accountInfo.textContent =
+          "Could not verify your account.";
+
+        showMessage(
+          "We could not verify your sign-in. Please check your connection.",
+          true
+        );
+
+        refreshButton.disabled = true;
+      }
+    }
+
+    refreshButton.addEventListener("click", loadNotifications);
+
+    initialise();
+  </script>
+</body>
+</html>
