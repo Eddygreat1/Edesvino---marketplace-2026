@@ -216,9 +216,11 @@ async function refreshComplaints(){
         <textarea id="response-${safeId}" rows="4" maxlength="3000"
         placeholder="Write a response the customer can read...">${escapeHTML(item.admin_response || "")}</textarea>
 
-        <button type="button" onclick="saveComplaint(${id},this)">
-          Save Status and Response
-        </button>
+        <button type="button" onclick="window.saveComplaint(Number(${id}), this)">
+  Save Status and Response
+</button>
+          
+      
         <div class="save-result" role="status" aria-live="polite"></div>
       </article>`;
     }).join("");
