@@ -262,14 +262,6 @@ async function loadUnreadNotificationCount() {
     console.error("Notification count could not be loaded:", error);
     countBox.textContent = "";
   }
-}
-
-
-
-
-    
-
-
     
     function safeText(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -376,12 +368,11 @@ async function loadUnreadNotificationCount() {
         return;
       }
 
-      try {
-        const client = window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_PUBLISHABLE_KEY
-        );
 
+      try {
+  const client = supabaseClient;  
+       
+  
         const { data, error } = await client
           .from("products")
           .select("*")
