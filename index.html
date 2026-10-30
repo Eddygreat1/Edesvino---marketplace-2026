@@ -263,7 +263,7 @@ async function loadUnreadNotificationCount() {
     console.error("Notification count could not be loaded:", error);
     countBox.textContent = "";
   }
-    
+ }  
     function safeText(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;",
