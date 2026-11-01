@@ -730,6 +730,12 @@ async function loadSellerVerification(sellerId) {
       const storeName = getStoreName(products[0]);
 
       setStoreHeading(storeName, products.length);
+      
+await loadSellerVerification(
+  products[0].seller_id || requestedSellerId
+);
+
+
 
       document.getElementById("storeDescription").textContent =
         "Explore " + products.length +
