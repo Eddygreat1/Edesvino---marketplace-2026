@@ -452,8 +452,15 @@
           '<div class="product-image">No product image available</div>';
       }
 
-      const store = product.store_name || product.store || "";
+      
+const store = product.store_name || product.store || "";
 
+const sellerStoreLink = product.seller_id
+  ? "./seller-store.html?seller_id=" + encodeURIComponent(product.seller_id)
+  : "./seller-store.html?store=" + encodeURIComponent(store);
+
+
+      
       statusBox.innerHTML = `
         <article class="product">
           <div>${imageHTML}</div>
