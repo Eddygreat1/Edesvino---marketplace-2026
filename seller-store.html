@@ -551,6 +551,38 @@ footer a {
     });
   }
 
+async function loadSellerVerification(sellerId) {
+  const badge = document.getElementById(
+    "sellerVerificationBadge"
+  );
+
+  badge.hidden = true;
+
+  if (!sellerId) return;
+
+  try {
+    const { data, error } = await client.rpc(
+      "is_approved_seller_public",
+      {
+        p_seller_id: sellerId
+      }
+    );
+
+    if (error) throw error;
+
+    badge.hidden = data !== true;
+
+  } catch (error) {
+    console.error("Seller verification error:", error);
+    badge.hidden = true;
+  }
+}
+
+
+
+
+  
+  
   async function loadPerformance(sellerId, products) {
     const ordersBox = document.getElementById("completedOrders");
     const ratingBox = document.getElementById("averageRating");
