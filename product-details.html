@@ -472,11 +472,20 @@ const sellerStoreLink = product.seller_id
               ${formatMoney(product.price)}
             </p>
 
+          
             ${
-              store
-                ? `<p class="muted">Store: ${escapeHTML(store)}</p>`
-                : ""
-            }
+  store
+    ? `<p class="muted">
+         Store:
+         <a href="${escapeHTML(sellerStoreLink)}"
+            style="color:#047857;font-weight:bold;">
+           ${escapeHTML(store)} — Visit Seller Store
+         </a>
+       </p>`
+    : ""
+}
+              
+        
 
             <h3>Product description</h3>
 
@@ -486,7 +495,7 @@ const sellerStoreLink = product.seller_id
                 "No description is available for this product."
               )
             }</p>
-
+l
             <label for="quantity">Quantity</label>
 
             <input
