@@ -108,6 +108,47 @@ a:focus {
   overflow-wrap: anywhere;
 }
 
+.performance-title {
+  text-align: center;
+  margin-top: 0;
+}
+
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  text-align: center;
+}
+
+.performance-card {
+  background: #f0f7f1;
+  border-radius: 10px;
+  padding: 18px 8px;
+  min-width: 0;
+}
+
+.performance-value {
+  display: block;
+  color: #14532d;
+  font-size: 25px;
+  font-weight: bold;
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+
+.performance-label {
+  color: #59665d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rating-note {
+  text-align: center;
+  color: #59665d;
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
 .products {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -180,12 +221,12 @@ footer a {
   color: #166534;
 }
 
-.hidden {
-  display: none !important;
-}
-
 @media (max-width: 480px) {
   .products {
+    grid-template-columns: 1fr;
+  }
+
+  .performance-grid {
     grid-template-columns: 1fr;
   }
 
@@ -230,6 +271,33 @@ footer a {
         Shopping Cart
       </a>
     </div>
+  </section>
+
+  <section class="panel">
+    <h2 class="performance-title">Seller Performance</h2>
+
+    <div class="performance-grid">
+
+      <div class="performance-card">
+        <span class="performance-value" id="completedOrders">--</span>
+        <span class="performance-label">Completed Orders</span>
+      </div>
+
+      <div class="performance-card">
+        <span class="performance-value" id="averageRating">--</span>
+        <span class="performance-label">Average Customer Rating</span>
+      </div>
+
+      <div class="performance-card">
+        <span class="performance-value" id="totalReviews">--</span>
+        <span class="performance-label">Customer Reviews</span>
+      </div>
+
+    </div>
+
+    <p class="rating-note" id="ratingNote">
+      Loading seller performance...
+    </p>
   </section>
 
   <section class="panel" id="status" role="status" aria-live="polite">
@@ -452,6 +520,101 @@ footer a {
     });
   }
 
+  async function loadPerformance(sellerId, products) {
+    const ordersBox = document.getElementById("completedOrders");
+    const ratingBox = document.getElementById("averageRating");
+    const reviewsBox = document.getElementById("totalReviews");
+    const noteBox = document.getElementById("ratingNote");
+
+    if (!sellerId) {
+      ordersBox.textContent = "N/A";
+      ratingBox.textContent = "N/A";
+      reviewsBox.textContent = "N/A";
+      noteBox.textContent =
+        "Seller performance information is unavailable.";
+      return;
+    }
+
+    try {
+      const orderRequest = client
+        .from("orders")
+        .select("status")
+        .eq("seller_id", sellerId);
+
+      const productIds = products.map(function (product) {
+        return product.id;
+      });
+
+      const reviewRequest = productIds.length
+        ? client
+            .from("product_reviews")
+            .select("rating")
+            .in("product_id", productIds)
+        : Promise.resolve({ data: [], error: null });
+
+      const results = await Promise.all([
+        orderRequest,
+        reviewRequest
+      ]);
+
+      const orderResult = results[0];
+      const reviewResult = results[1];
+
+      if (orderResult.error) throw orderResult.error;
+      if (reviewResult.error) throw reviewResult.error;
+
+      const completed = (orderResult.data || []).filter(
+        function (order) {
+          return String(order.status || "").toLowerCase() === "delivered";
+        }
+      ).length;
+
+      const reviews = reviewResult.data || [];
+
+      const validRatings = reviews
+        .map(function (review) {
+          return Number(review.rating);
+        })
+        .filter(function (rating) {
+          return Number.isFinite(rating) &&
+            rating >= 1 &&
+            rating <= 5;
+        });
+
+      const average = validRatings.length
+        ? validRatings.reduce(function (sum, rating) {
+            return sum + rating;
+          }, 0) / validRatings.length
+        : null;
+
+      ordersBox.textContent = String(completed);
+      reviewsBox.textContent = String(validRatings.length);
+
+      if (average === null) {
+        ratingBox.textContent = "Not yet rated";
+        noteBox.textContent =
+          "This seller has not received a customer rating yet.";
+      } else {
+        ratingBox.textContent = average.toFixed(2) + " / 5";
+        noteBox.textContent =
+          "Based on " + validRatings.length +
+          (validRatings.length === 1
+            ? " customer review."
+            : " customer reviews.");
+      }
+
+    } catch (error) {
+      console.error("Seller performance error:", error);
+
+      ordersBox.textContent = "Unavailable";
+      ratingBox.textContent = "Unavailable";
+      reviewsBox.textContent = "Unavailable";
+
+      noteBox.textContent =
+        "Seller performance information could not be loaded.";
+    }
+  }
+
   async function loadStore() {
     if (!requestedSellerId && !requestedStoreName) {
       statusBox.textContent =
@@ -517,6 +680,11 @@ footer a {
       statusBox.textContent =
         "Store loaded successfully. " +
         products.length + " product(s) are available to browse.";
+
+      await loadPerformance(
+        products[0].seller_id || requestedSellerId,
+        products
+      );
 
     } catch (error) {
       console.error("Seller store error:", error);
