@@ -116,11 +116,12 @@ Deno.serve(async (req) => {
 
       const origin = req.headers.get("origin");
 
-      if (origin !== "https://eddygreat1.github.io") {
+      if (!["https://edesvino.com.ng", "https://www.edesvino.com.ng", "https://eddygreat1.github.io"].includes(origin ?? "")) {
+    
         return jsonResponse({ error: "Invalid website origin." }, 403);
       }
 
-      const paystackResponse = await fetch(
+   const paystackResponse = await fetch(
         "https://api.paystack.co/transaction/initialize",
         {
           method: "POST",
