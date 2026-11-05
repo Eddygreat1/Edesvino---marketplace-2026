@@ -134,7 +134,8 @@ Deno.serve(async (req) => {
             amount: amountInKobo,
             currency: "NGN",
             callback_url:
-              "https://eddygreat1.github.io/Edesvino---marketplace-2026/checkout.html",
+             https://edesvino.com.ng/checkout.html
+              
             metadata: {
               order_id: order.id,
               customer_id: user.id,
