@@ -133,10 +133,8 @@ Deno.serve(async (req) => {
             email: user.email,
             amount: amountInKobo,
             currency: "NGN",
-            callback_url:
-             https://edesvino.com.ng/checkout.html
-              
-            metadata: {
+            callback_url: "https://edesvino.com.ng/checkout.html"
+             metadata: {
               order_id: order.id,
               customer_id: user.id,
             },
