@@ -1,4 +1,4 @@
-youname: Deploy Paystack Edge Function
+name: Deploy Paystack Edge Function
 
 on:
   workflow_dispatch:
