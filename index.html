@@ -478,12 +478,25 @@ if (searchInput) {
           "Products could not be loaded. Check your Supabase connection, table columns, and read permissions. Existing data has not been changed.";
       }
     }
-
-
-
-   updateCartCount();
+    
+  updateCartCount();
 loadUnreadNotificationCount();
 loadProducts(); 
   </script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/service-worker.js")
+          .catch(error => {
+            console.error("Edesvino app setup failed:", error);
+          });
+      });
+    }
+  </script>
+
 </body>
 </html>
+
+  
+  
