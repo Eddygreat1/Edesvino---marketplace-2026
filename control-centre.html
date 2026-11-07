@@ -78,11 +78,24 @@ button {
 
 button:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .small-button {
   width: auto;
   padding: 9px 14px;
+}
+
+.approve-button {
+  background: #166534;
+  padding: 9px;
+  margin: 3px;
+}
+
+.reject-button {
+  background: #b91c1c;
+  padding: 9px;
+  margin: 3px;
 }
 
 .message {
@@ -167,6 +180,7 @@ th, td {
   border-bottom: 1px solid #e2e8e3;
   padding: 10px 8px;
   text-align: left;
+  vertical-align: top;
 }
 
 th {
@@ -175,6 +189,31 @@ th {
 
 .hidden {
   display: none;
+}
+
+.status-pending {
+  color: #a16207;
+  font-weight: bold;
+}
+
+.status-approved {
+  color: #166534;
+  font-weight: bold;
+}
+
+.status-rejected {
+  color: #b91c1c;
+  font-weight: bold;
+}
+
+.applicant-details {
+  min-width: 250px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.action-cell {
+  min-width: 130px;
 }
 
 footer {
@@ -332,6 +371,74 @@ footer a {
     </div>
   </section>
 
+  <!-- BRAND AMBASSADOR MANAGEMENT -->
+
+  <section id="ambassadorManagement">
+
+    <h2>Brand Ambassador Management</h2>
+
+    <p class="note">
+      Review applications submitted by people interested in promoting
+      Edesvino and recruiting genuine independent sellers.
+      Only platform administrators can manage these applications.
+    </p>
+
+    <div class="grid">
+
+      <div class="metric">
+        <span class="label">Total Applications</span>
+        <span class="value" id="ambassadorTotal">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Pending Applications</span>
+        <span class="value" id="ambassadorPending">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Approved Applications</span>
+        <span class="value" id="ambassadorApproved">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Rejected Applications</span>
+        <span class="value" id="ambassadorRejected">—</span>
+      </div>
+
+    </div>
+
+    <div id="ambassadorMessage" class="message">
+      Ambassador applications will appear here.
+    </div>
+
+    <div class="table-wrap">
+
+      <table style="min-width:850px">
+
+        <thead>
+          <tr>
+            <th>Applicant Details</th>
+            <th>Application Information</th>
+            <th>Status</th>
+            <th>Application Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="ambassadorTable">
+          <tr>
+            <td colspan="5">No applications loaded yet.</td>
+          </tr>
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
+  <!-- END BRAND AMBASSADOR MANAGEMENT -->
+
   <section>
     <h2>Recent Orders</h2>
 
@@ -462,6 +569,8 @@ footer a {
 
     $("ordersMessage").textContent =
       "Order information will appear here after refreshing.";
+
+    clearAmbassadorOverview();
   }
 
   function isSuccessful(status) {
@@ -700,6 +809,305 @@ footer a {
     displayValue("withdrawalAccess", "Available");
   }
 
+  // BRAND AMBASSADOR MANAGEMENT
+
+  function clearAmbassadorOverview() {
+    displayValue("ambassadorTotal", "—");
+    displayValue("ambassadorPending", "—");
+    displayValue("ambassadorApproved", "—");
+    displayValue("ambassadorRejected", "—");
+
+    $("ambassadorTable").innerHTML =
+      '<tr><td colspan="5">No applications loaded yet.</td></tr>';
+
+    $("ambassadorMessage").textContent =
+      "Ambassador applications will appear here.";
+  }
+
+  function addCell(row, value, className) {
+    const cell = document.createElement("td");
+
+    cell.textContent = value || "Not provided";
+
+    if (className) {
+      cell.className = className;
+    }
+
+    row.appendChild(cell);
+
+    return cell;
+  }
+
+  function addActionButton(container, label, action, id, className) {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.textContent = label;
+    button.dataset.action = action;
+    button.dataset.id = id;
+    button.className = className;
+
+    container.appendChild(button);
+  }
+
+  async function loadAmbassadors() {
+    const { data, error } = await client
+      .from("ambassador_applications")
+      .select(
+        "id,full_name,email,phone,state,location,social_profile,reason,experience,status,created_at"
+      )
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    if (error) {
+      clearAmbassadorOverview();
+
+      $("ambassadorMessage").textContent =
+        "Could not load ambassador applications: " +
+        error.message;
+
+      $("ambassadorMessage").className =
+        "message error";
+
+      return;
+    }
+
+    const rows = data || [];
+
+    const pending = rows.filter(row =>
+      String(row.status || "").toLowerCase() === "pending"
+    );
+
+    const approved = rows.filter(row =>
+      String(row.status || "").toLowerCase() === "approved"
+    );
+
+    const rejected = rows.filter(row =>
+      String(row.status || "").toLowerCase() === "rejected"
+    );
+
+    displayValue("ambassadorTotal", rows.length);
+    displayValue("ambassadorPending", pending.length);
+    displayValue("ambassadorApproved", approved.length);
+    displayValue("ambassadorRejected", rejected.length);
+
+    const tbody = $("ambassadorTable");
+
+    tbody.replaceChildren();
+
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+
+      td.colSpan = 5;
+      td.textContent = "No ambassador applications have been submitted yet.";
+
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+
+    rows.forEach(application => {
+      const tr = document.createElement("tr");
+
+      const applicantCell = document.createElement("td");
+      applicantCell.className = "applicant-details";
+
+      const name = document.createElement("strong");
+      name.textContent = application.full_name || "No name";
+
+      applicantCell.appendChild(name);
+      applicantCell.appendChild(document.createElement("br"));
+
+      applicantCell.appendChild(
+        document.createTextNode("Email: " + (application.email || "Not provided"))
+      );
+
+      applicantCell.appendChild(document.createElement("br"));
+
+      applicantCell.appendChild(
+        document.createTextNode("Phone: " + (application.phone || "Not provided"))
+      );
+
+      applicantCell.appendChild(document.createElement("br"));
+
+      applicantCell.appendChild(
+        document.createTextNode("State: " + (application.state || "Not provided"))
+      );
+
+      applicantCell.appendChild(document.createElement("br"));
+
+      applicantCell.appendChild(
+        document.createTextNode("Location: " + (application.location || "Not provided"))
+      );
+
+      tr.appendChild(applicantCell);
+
+      const informationCell = document.createElement("td");
+      informationCell.className = "applicant-details";
+
+      const details = [
+        ["Social Profile", application.social_profile],
+        ["Reason for applying", application.reason],
+        ["Marketing experience", application.experience]
+      ];
+
+      details.forEach(item => {
+        const strong = document.createElement("strong");
+        strong.textContent = item[0] + ": ";
+
+        informationCell.appendChild(strong);
+
+        informationCell.appendChild(
+          document.createTextNode(item[1] || "Not provided")
+        );
+
+        informationCell.appendChild(document.createElement("br"));
+      });
+
+      tr.appendChild(informationCell);
+
+      const status = String(application.status || "Pending");
+      const statusCell = addCell(tr, status);
+
+      const normalizedStatus = status.toLowerCase();
+
+      if (normalizedStatus === "approved") {
+        statusCell.className = "status-approved";
+      } else if (normalizedStatus === "rejected") {
+        statusCell.className = "status-rejected";
+      } else {
+        statusCell.className = "status-pending";
+      }
+
+      let applicationDate = "Not available";
+
+      if (application.created_at) {
+        const date = new Date(application.created_at);
+
+        if (!Number.isNaN(date.getTime())) {
+          applicationDate = date.toLocaleString("en-NG");
+        }
+      }
+
+      addCell(tr, applicationDate);
+
+      const actionCell = document.createElement("td");
+      actionCell.className = "action-cell";
+
+      if (normalizedStatus === "pending") {
+        addActionButton(
+          actionCell,
+          "Approve",
+          "approve",
+          application.id,
+          "approve-button"
+        );
+
+        addActionButton(
+          actionCell,
+          "Reject",
+          "reject",
+          application.id,
+          "reject-button"
+        );
+      } else {
+        actionCell.textContent = "No action required";
+      }
+
+      tr.appendChild(actionCell);
+
+      tbody.appendChild(tr);
+    });
+
+    $("ambassadorMessage").textContent =
+      "Successfully loaded " + rows.length +
+      " ambassador application(s).";
+
+    $("ambassadorMessage").className = "message";
+  }
+
+  async function updateAmbassadorStatus(id, newStatus, button) {
+    const actionText = newStatus === "Approved"
+      ? "approve"
+      : "reject";
+
+    const confirmed = window.confirm(
+      "Are you sure you want to " + actionText +
+      " this ambassador application?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Saving...";
+
+    try {
+      const { data, error } = await client
+        .from("ambassador_applications")
+        .update({ status: newStatus })
+        .eq("id", id)
+        .eq("status", "Pending")
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error(
+          "No pending application was updated. Refresh and check its current status."
+        );
+      }
+
+      $("ambassadorMessage").textContent =
+        "Application successfully marked as " + newStatus + ".";
+
+      $("ambassadorMessage").className = "message";
+
+      await loadAmbassadors();
+
+    } catch (error) {
+      $("ambassadorMessage").textContent =
+        "Could not update application: " +
+        (error.message || "Please try again.");
+
+      $("ambassadorMessage").className = "message error";
+
+      button.disabled = false;
+      button.textContent = newStatus === "Approved"
+        ? "Approve"
+        : "Reject";
+    }
+  }
+
+  $("ambassadorTable").addEventListener("click", function(event) {
+    const button = event.target.closest("button[data-action]");
+
+    if (!button) {
+      return;
+    }
+
+    const id = button.dataset.id;
+    const action = button.dataset.action;
+
+    if (!id) {
+      return;
+    }
+
+    if (action === "approve") {
+      updateAmbassadorStatus(id, "Approved", button);
+    }
+
+    if (action === "reject") {
+      updateAmbassadorStatus(id, "Rejected", button);
+    }
+  });
+
+  // END BRAND AMBASSADOR MANAGEMENT
+
   async function refreshOverview() {
     $("refreshButton").disabled = true;
     $("refreshButton").textContent = "Refreshing...";
@@ -716,7 +1124,8 @@ footer a {
       const results = await Promise.allSettled([
         loadOrders(),
         loadCommissions(),
-        loadWithdrawals()
+        loadWithdrawals(),
+        loadAmbassadors()
       ]);
 
       const failed = results.some(result =>
