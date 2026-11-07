@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edesvino Brand Ambassador Registration</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f2f5f8;
+    color: #263238;
+}
+
+header {
+    background: #123c32;
+    color: white;
+    text-align: center;
+    padding: 25px 15px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 25px;
+}
+
+header p {
+    margin-bottom: 0;
+}
+
+.container {
+    max-width: 600px;
+    margin: 25px auto;
+    padding: 25px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+}
+
+h2 {
+    color: #123c32;
+    text-align: center;
+}
+
+.description {
+    text-align: center;
+    line-height: 1.6;
+    color: #555;
+}
+
+label {
+    display: block;
+    margin-top: 17px;
+    font-weight: bold;
+}
+
+input, textarea, select {
+    width: 100%;
+    padding: 13px;
+    margin-top: 7px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    margin-top: 25px;
+    background: #123c32;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+}
+
+.notice {
+    background: #eaf4ef;
+    padding: 15px;
+    border-radius: 7px;
+    margin-top: 20px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+#message {
+    margin-top: 15px;
+    text-align: center;
+    font-weight: bold;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>EDESVINO MARKETPLACE</h1>
+    <p>Building Opportunities. Connecting Businesses.</p>
+</header>
+
+<div class="container">
+
+<h2>Become a Brand Ambassador</h2>
+
+<p class="description">
+Join the Edesvino Brand Ambassador Programme.
+Help genuine business owners discover online selling
+opportunities while earning approved rewards.
+</p>
+
+<form id="ambassadorForm">
+
+<label>Full Name *</label>
+<input type="text" id="fullName" required>
+
+<label>Email Address *</label>
+<input type="email" id="email" required>
+
+<label>Phone Number *</label>
+<input type="tel" id="phone" required>
+
+<label>State *</label>
+<input type="text" id="state" placeholder="Enter your state" required>
+
+<label>City / Location *</label>
+<input type="text" id="location" required>
+
+<label>Social Media Profile</label>
+<input type="url" id="social" placeholder="Paste your profile link">
+
+<label>Why do you want to become an Edesvino Ambassador? *</label>
+<textarea id="reason" required></textarea>
+
+<label>Do you have experience in marketing or business promotion?</label>
+
+<select id="experience" required>
+    <option value="">Select an answer</option>
+    <option value="Yes">Yes</option>
+    <option value="No">No</option>
+    <option value="Some experience">Some experience</option>
+</select>
+
+<div class="notice">
+<strong>Important Information</strong><br><br>
+
+Submitting this application does not automatically make
+you an approved ambassador.
+
+All applications are subject to review and approval
+by Edesvino Marketplace.
+
+Ambassadors must promote genuine businesses and
+follow the official programme rules.
+</div>
+
+<button type="submit" id="submitBtn">
+Submit Application
+</button>
+
+</form>
+
+<div id="message"></div>
+
+</div>
+
+<footer>
+<p>© 2026 Edesvino Marketplace</p>
+<p>All Rights Reserved.</p>
+</footer>
+
+<script>
+document.getElementById("ambassadorForm")
+.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    document.getElementById("message").textContent =
+    "Application submission will be activated after the secure database connection is configured.";
+});
+</script>
+
+</body>
+</html>
