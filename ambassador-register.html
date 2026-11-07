@@ -29,10 +29,6 @@ header h1 {
     font-size: 25px;
 }
 
-header p {
-    margin-bottom: 0;
-}
-
 .container {
     max-width: 600px;
     margin: 25px auto;
@@ -88,6 +84,7 @@ button {
 
 button:disabled {
     opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .notice {
@@ -103,6 +100,7 @@ button:disabled {
     margin-top: 15px;
     text-align: center;
     font-weight: bold;
+    line-height: 1.5;
 }
 
 footer {
@@ -142,13 +140,14 @@ opportunities while earning approved rewards.
 <input type="tel" id="phone" required>
 
 <label>State *</label>
-<input type="text" id="state" placeholder="Enter your state" required>
+<input type="text" id="state" required>
 
 <label>City / Location *</label>
 <input type="text" id="location" required>
 
 <label>Social Media Profile</label>
-<input type="url" id="social" placeholder="Paste your profile link">
+<input type="url" id="social"
+placeholder="Paste your profile link">
 
 <label>Why do you want to become an Edesvino Ambassador? *</label>
 <textarea id="reason" required></textarea>
@@ -156,10 +155,10 @@ opportunities while earning approved rewards.
 <label>Do you have experience in marketing or business promotion?</label>
 
 <select id="experience" required>
-    <option value="">Select an answer</option>
-    <option value="Yes">Yes</option>
-    <option value="No">No</option>
-    <option value="Some experience">Some experience</option>
+<option value="">Select an answer</option>
+<option value="Yes">Yes</option>
+<option value="No">No</option>
+<option value="Some experience">Some experience</option>
 </select>
 
 <div class="notice">
@@ -181,7 +180,7 @@ Submit Application
 
 </form>
 
-<div id="message"></div>
+<div id="message" role="status" aria-live="polite"></div>
 
 </div>
 
@@ -191,13 +190,93 @@ Submit Application
 </footer>
 
 <script>
-document.getElementById("ambassadorForm")
-.addEventListener("submit", function(event) {
+
+const SUPABASE_URL =
+"https://lxszilqypuglxyfyukdg.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+const form = document.getElementById("ambassadorForm");
+const button = document.getElementById("submitBtn");
+const message = document.getElementById("message");
+
+form.addEventListener("submit", async function(event) {
+
     event.preventDefault();
 
-    document.getElementById("message").textContent =
-    "Application submission will be activated after the secure database connection is configured.";
+    if (!form.reportValidity()) return;
+
+    button.disabled = true;
+    button.textContent = "Submitting Application...";
+    message.textContent = "";
+    message.style.color = "#123c32";
+
+    const application = {
+        full_name: document.getElementById("fullName").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        Phone: document.getElementById("phone").value.trim(),
+        State: document.getElementById("state").value.trim(),
+        Location: document.getElementById("location").value.trim(),
+        social_profile: document.getElementById("social").value.trim(),
+        reason: document.getElementById("reason").value.trim(),
+        experience: document.getElementById("experience").value,
+        Status: "Pending"
+    };
+
+    try {
+
+        const response = await fetch(
+            SUPABASE_URL + "/rest/v1/ambassador_applications",
+            {
+                method: "POST",
+
+                headers: {
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": "Bearer " + SUPABASE_KEY,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
+                },
+
+                body: JSON.stringify(application)
+            }
+        );
+
+        if (!response.ok) {
+
+            const error = await response.json();
+
+            throw new Error(
+                error.message || error.details ||
+                error.hint || "Unable to save application."
+            );
+        }
+
+        message.style.color = "green";
+
+        message.textContent =
+        "Congratulations! Your application has been submitted successfully. Your application is now Pending review by Edesvino Marketplace.";
+
+        form.reset();
+
+    } catch (error) {
+
+        console.error("Ambassador application error:", error);
+
+        message.style.color = "red";
+
+        message.textContent =
+        "Application could not be submitted: " + error.message;
+
+    } finally {
+
+        button.disabled = false;
+        button.textContent = "Submit Application";
+
+    }
+
 });
+
 </script>
 
 </body>
