@@ -1,0 +1,19 @@
+{
+  "name": "Edesvino Marketplace",
+  "short_name": "Edesvino",
+  "description": "Buy and sell products on Edesvino Marketplace.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f4f6",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/icons/edesvino-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
