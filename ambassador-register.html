@@ -6,9 +6,7 @@
 <title>Edesvino Brand Ambassador Registration</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
     margin: 0;
@@ -210,18 +208,17 @@ form.addEventListener("submit", async function(event) {
     button.disabled = true;
     button.textContent = "Submitting Application...";
     message.textContent = "";
-    message.style.color = "#123c32";
 
     const application = {
         full_name: document.getElementById("fullName").value.trim(),
         email: document.getElementById("email").value.trim(),
-        Phone: document.getElementById("phone").value.trim(),
-        State: document.getElementById("state").value.trim(),
-        Location: document.getElementById("location").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        state: document.getElementById("state").value.trim(),
+        location: document.getElementById("location").value.trim(),
         social_profile: document.getElementById("social").value.trim(),
         reason: document.getElementById("reason").value.trim(),
         experience: document.getElementById("experience").value,
-        Status: "Pending"
+        status: "Pending"
     };
 
     try {
@@ -230,22 +227,18 @@ form.addEventListener("submit", async function(event) {
             SUPABASE_URL + "/rest/v1/ambassador_applications",
             {
                 method: "POST",
-
                 headers: {
                     "apikey": SUPABASE_KEY,
                     "Authorization": "Bearer " + SUPABASE_KEY,
                     "Content-Type": "application/json",
                     "Prefer": "return=minimal"
                 },
-
                 body: JSON.stringify(application)
             }
         );
 
         if (!response.ok) {
-
             const error = await response.json();
-
             throw new Error(
                 error.message || error.details ||
                 error.hint || "Unable to save application."
@@ -253,7 +246,6 @@ form.addEventListener("submit", async function(event) {
         }
 
         message.style.color = "green";
-
         message.textContent =
         "Congratulations! Your application has been submitted successfully. Your application is now Pending review by Edesvino Marketplace.";
 
@@ -264,7 +256,6 @@ form.addEventListener("submit", async function(event) {
         console.error("Ambassador application error:", error);
 
         message.style.color = "red";
-
         message.textContent =
         "Application could not be submitted: " + error.message;
 
