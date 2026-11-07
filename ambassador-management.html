@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edesvino Ambassador Management</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: Arial, sans-serif;
+  background: #f2f6f3;
+  color: #202820;
+}
+
+header {
+  background: #14532d;
+  color: white;
+  padding: 24px 18px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+header p {
+  line-height: 1.5;
+  margin: 0;
+}
+
+section {
+  background: white;
+  padding: 17px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 7px #0000000d;
+}
+
+h2 {
+  font-size: 19px;
+  margin-top: 0;
+}
+
+input, button {
+  width: 100%;
+  padding: 13px;
+  margin: 7px 0;
+  border-radius: 7px;
+  font-size: 15px;
+}
+
+input {
+  border: 1px solid #cbd5ce;
+}
+
+button {
+  border: none;
+  background: #166534;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+.approve {
+  background: #166534;
+}
+
+.reject {
+  background: #b91c1c;
+}
+
+.message {
+  padding: 12px;
+  background: #edf7ef;
+  border-radius: 7px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.error {
+  background: #fff0f0;
+  color: #991b1b;
+}
+
+.note {
+  color: #596459;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.metric {
+  padding: 15px;
+  border: 1px solid #e0e8e1;
+  border-radius: 9px;
+}
+
+.metric span {
+  display: block;
+}
+
+.label {
+  font-size: 12px;
+  color: #596459;
+  margin-bottom: 8px;
+}
+
+.value {
+  font-size: 23px;
+  font-weight: bold;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 850px;
+  font-size: 13px;
+}
+
+th, td {
+  padding: 11px;
+  border-bottom: 1px solid #e2e8e3;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #f0f5f1;
+}
+
+.details {
+  min-width: 230px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.status-approved {
+  color: #166534;
+  font-weight: bold;
+}
+
+.status-rejected {
+  color: #b91c1c;
+  font-weight: bold;
+}
+
+.status-pending {
+  color: #a16207;
+  font-weight: bold;
+}
+
+.actions {
+  min-width: 115px;
+}
+
+.actions button {
+  padding: 9px;
+  font-size: 12px;
+}
+
+.hidden {
+  display: none;
+}
+
+footer {
+  text-align: center;
+  padding: 18px;
+  font-size: 13px;
+}
+
+footer a {
+  color: #166534;
+}
+
+@media(min-width: 700px) {
+  body {
+    max-width: 1100px;
+    margin: auto;
+  }
+
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Edesvino Ambassador Management</h1>
+  <p>
+    Manage brand ambassador applications and approve
+    qualified people promoting Edesvino.
+  </p>
+</header>
+
+<section>
+  <h2>Owner Login</h2>
+
+  <div id="accountMessage" class="message">
+    Sign in with your Edesvino owner account.
+  </div>
+
+  <form id="loginForm">
+
+    <label>Email Address</label>
+    <input
+      type="email"
+      id="email"
+      placeholder="Owner email address"
+      required
+    >
+
+    <label>Password</label>
+    <input
+      type="password"
+      id="password"
+      placeholder="Owner password"
+      required
+    >
+
+    <button id="loginButton" type="submit">
+      Owner Login
+    </button>
+
+  </form>
+
+  <div id="accountActions" class="hidden">
+
+    <button id="refreshButton" type="button">
+      Refresh Applications
+    </button>
+
+    <button id="logoutButton" type="button">
+      Log Out
+    </button>
+
+  </div>
+</section>
+
+<div id="dashboard" class="hidden">
+
+  <section>
+    <h2>Ambassador Overview</h2>
+
+    <div class="grid">
+
+      <div class="metric">
+        <span class="label">Total Applications</span>
+        <span class="value" id="total">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Pending</span>
+        <span class="value" id="pending">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Approved</span>
+        <span class="value" id="approved">—</span>
+      </div>
+
+      <div class="metric">
+        <span class="label">Rejected</span>
+        <span class="value" id="rejected">—</span>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+
+    <h2>Applications</h2>
+
+    <p class="note">
+      Review each applicant's information before approving
+      or rejecting an application.
+    </p>
+
+    <div id="applicationMessage" class="message">
+      Applications will appear here.
+    </div>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead>
+          <tr>
+            <th>Applicant</th>
+            <th>Application Details</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="applicationsTable">
+
+          <tr>
+            <td colspan="5">
+              No applications loaded.
+            </td>
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
+</div>
+
+<footer>
+  <a href="index.html">Back to Edesvino Marketplace</a>
+  <p>Edesvino Brand Ambassador Programme</p>
+</footer>
+
+<script>
+(function() {
+
+"use strict";
+
+const SUPABASE_URL =
+"https://lxszilqypuglxyfyukdg.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_s0nfQzd5aJVQjHSNAxsJsg_2ZVe5UQh";
+
+const OWNER_ID =
+"b860b02d-0bf3-4b8d-87f8-965753f22f72";
+
+const client = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const $ = id => document.getElementById(id);
+
+function showMessage(message, isError) {
+
+  $("accountMessage").textContent = message;
+
+  $("accountMessage").className =
+    isError ? "message error" : "message";
+
+}
+
+function showApplicationMessage(message, isError) {
+
+  $("applicationMessage").textContent = message;
+
+  $("applicationMessage").className =
+    isError ? "message error" : "message";
+
+}
+
+function showDashboard(show) {
+
+  $("dashboard").classList.toggle("hidden", !show);
+
+  $("accountActions").classList.toggle("hidden", !show);
+
+  $("loginForm").classList.toggle("hidden", show);
+
+}
+
+async function checkOwner() {
+
+  const { data, error } =
+    await client.auth.getSession();
+
+  if (error) throw error;
+
+  const session = data.session;
+
+  if (!session) {
+
+    showDashboard(false);
+
+    return false;
+
+  }
+
+  if (session.user.id !== OWNER_ID) {
+
+    await client.auth.signOut();
+
+    showDashboard(false);
+
+    showMessage(
+      "Access denied. Owner account required.",
+      true
+    );
+
+    return false;
+
+  }
+
+  showDashboard(true);
+
+  showMessage(
+    "Owner authenticated: " +
+    (session.user.email || "Owner"),
+    false
+  );
+
+  return true;
+
+}
+
+function resetDashboard() {
+
+  $("total").textContent = "—";
+  $("pending").textContent = "—";
+  $("approved").textContent = "—";
+  $("rejected").textContent = "—";
+
+  $("applicationsTable").innerHTML =
+    '<tr><td colspan="5">No applications loaded.</td></tr>';
+
+}
+
+function addCell(row, text, className) {
+
+  const td = document.createElement("td");
+
+  td.textContent = text || "Not provided";
+
+  if (className) {
+    td.className = className;
+  }
+
+  row.appendChild(td);
+
+  return td;
+
+}
+
+function addButton(container, label, action, id, className) {
+
+  const button = document.createElement("button");
+
+  button.type = "button";
+  button.textContent = label;
+  button.dataset.action = action;
+  button.dataset.id = id;
+  button.className = className;
+
+  container.appendChild(button);
+
+}
+
+function createApplicantCell(application) {
+
+  const td = document.createElement("td");
+
+  td.className = "details";
+
+  const name = document.createElement("strong");
+
+  name.textContent = application.full_name || "No name";
+
+  td.appendChild(name);
+
+  const details = [
+    "Email: " + (application.email || "Not provided"),
+    "Phone: " + (application.phone || "Not provided"),
+    "State: " + (application.state || "Not provided"),
+    "Location: " + (application.location || "Not provided")
+  ];
+
+  details.forEach(item => {
+
+    const div = document.createElement("div");
+
+    div.textContent = item;
+
+    td.appendChild(div);
+
+  });
+
+  return td;
+
+}
+
+function createInformationCell(application) {
+
+  const td = document.createElement("td");
+
+  td.className = "details";
+
+  const details = [
+    ["Social Profile", application.social_profile],
+    ["Reason", application.reason],
+    ["Experience", application.experience]
+  ];
+
+  details.forEach(item => {
+
+    const div = document.createElement("div");
+
+    const strong = document.createElement("strong");
+
+    strong.textContent = item[0] + ": ";
+
+    div.appendChild(strong);
+
+    div.appendChild(
+      document.createTextNode(item[1] || "Not provided")
+    );
+
+    td.appendChild(div);
+
+  });
+
+  return td;
+
+}
+
+async function loadApplications() {
+
+  showApplicationMessage(
+    "Loading ambassador applications...",
+    false
+  );
+
+  const { data, error } = await client
+    .from("ambassador_applications")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
+  if (error) {
+
+    resetDashboard();
+
+    showApplicationMessage(
+      "Applications could not be loaded: " +
+      error.message +
+      ". Check the table's SELECT permissions.",
+      true
+    );
+
+    return;
+
+  }
+
+  const rows = data || [];
+
+  const pendingRows = rows.filter(row =>
+    String(row.status || "").toLowerCase() === "pending"
+  );
+
+  const approvedRows = rows.filter(row =>
+    String(row.status || "").toLowerCase() === "approved"
+  );
+
+  const rejectedRows = rows.filter(row =>
+    String(row.status || "").toLowerCase() === "rejected"
+  );
+
+  $("total").textContent = rows.length;
+
+  $("pending").textContent = pendingRows.length;
+
+  $("approved").textContent = approvedRows.length;
+
+  $("rejected").textContent = rejectedRows.length;
+
+  const tbody = $("applicationsTable");
+
+  tbody.replaceChildren();
+
+  if (!rows.length) {
+
+    const tr = document.createElement("tr");
+
+    const td = document.createElement("td");
+
+    td.colSpan = 5;
+
+    td.textContent = "No ambassador applications found.";
+
+    tr.appendChild(td);
+
+    tbody.appendChild(tr);
+
+  }
+
+  rows.forEach(application => {
+
+    const tr = document.createElement("tr");
+
+    tr.appendChild(
+      createApplicantCell(application)
+    );
+
+    tr.appendChild(
+      createInformationCell(application)
+    );
+
+    const status = String(
+      application.status || "Pending"
+    );
+
+    const normalized = status.toLowerCase();
+
+    let statusClass = "status-pending";
+
+    if (normalized === "approved") {
+      statusClass = "status-approved";
+    }
+
+    if (normalized === "rejected") {
+      statusClass = "status-rejected";
+    }
+
+    addCell(tr, status, statusClass);
+
+    let dateText = "Not available";
+
+    if (application.created_at) {
+
+      const date = new Date(application.created_at);
+
+      if (!Number.isNaN(date.getTime())) {
+        dateText = date.toLocaleString("en-NG");
+      }
+
+    }
+
+    addCell(tr, dateText);
+
+    const actionCell = document.createElement("td");
+
+    actionCell.className = "actions";
+
+    if (normalized === "pending") {
+
+      addButton(
+        actionCell,
+        "Approve",
+        "approve",
+        application.id,
+        "approve"
+      );
+
+      addButton(
+        actionCell,
+        "Reject",
+        "reject",
+        application.id,
+        "reject"
+      );
+
+    } else {
+
+      actionCell.textContent = "No action required";
+
+    }
+
+    tr.appendChild(actionCell);
+
+    tbody.appendChild(tr);
+
+  });
+
+  showApplicationMessage(
+    "Successfully loaded " + rows.length +
+    " ambassador application(s).",
+    false
+  );
+
+}
+
+async function updateStatus(id, status, button) {
+
+  const action = status.toLowerCase();
+
+  if (!window.confirm(
+    "Are you sure you want to " + action +
+    " this ambassador application?"
+  )) {
+    return;
+  }
+
+  button.disabled = true;
+
+  button.textContent = "Saving...";
+
+  try {
+
+    const { data, error } = await client
+      .from("ambassador_applications")
+      .update({ status: status })
+      .eq("id", id)
+      .eq("status", "Pending")
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+
+      throw new Error(
+        "No pending application was updated. Refresh and check its status."
+      );
+
+    }
+
+    showApplicationMessage(
+      "Application successfully " + action + ".",
+      false
+    );
+
+    await loadApplications();
+
+  } catch(error) {
+
+    showApplicationMessage(
+      "Update failed: " +
+      error.message +
+      ". Check the table's UPDATE permissions.",
+      true
+    );
+
+    button.disabled = false;
+
+    button.textContent =
+      status === "Approved" ? "Approve" : "Reject";
+
+  }
+
+}
+
+$("applicationsTable").addEventListener(
+  "click",
+  function(event) {
+
+    const button = event.target.closest(
+      "button[data-action]"
+    );
+
+    if (!button) return;
+
+    const id = button.dataset.id;
+
+    if (!id) return;
+
+    if (button.dataset.action === "approve") {
+
+      updateStatus(id, "Approved", button);
+
+    }
+
+    if (button.dataset.action === "reject") {
+
+      updateStatus(id, "Rejected", button);
+
+    }
+
+  }
+);
+
+async function refreshDashboard() {
+
+  $("refreshButton").disabled = true;
+
+  $("refreshButton").textContent = "Refreshing...";
+
+  try {
+
+    const allowed = await checkOwner();
+
+    if (!allowed) return;
+
+    await loadApplications();
+
+  } catch(error) {
+
+    showMessage(
+      "Refresh failed: " + error.message,
+      true
+    );
+
+  } finally {
+
+    $("refreshButton").disabled = false;
+
+    $("refreshButton").textContent =
+      "Refresh Applications";
+
+  }
+
+}
+
+$("loginForm").addEventListener(
+  "submit",
+  async function(event) {
+
+    event.preventDefault();
+
+    const email = $("email").value.trim();
+
+    const password = $("password").value;
+
+    $("loginButton").disabled = true;
+
+    $("loginButton").textContent = "Signing in...";
+
+    try {
+
+      const { error } =
+        await client.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if (error) throw error;
+
+      const allowed = await checkOwner();
+
+      if (allowed) {
+
+        await refreshDashboard();
+
+      }
+
+    } catch(error) {
+
+      showMessage(
+        "Login failed: " + error.message,
+        true
+      );
+
+    } finally {
+
+      $("loginButton").disabled = false;
+
+      $("loginButton").textContent = "Owner Login";
+
+    }
+
+  }
+);
+
+$("refreshButton").addEventListener(
+  "click",
+  refreshDashboard
+);
+
+$("logoutButton").addEventListener(
+  "click",
+  async function() {
+
+    const { error } = await client.auth.signOut();
+
+    resetDashboard();
+
+    showDashboard(false);
+
+    showMessage(
+      error ? error.message : "You have logged out.",
+      !!error
+    );
+
+  }
+);
+
+client.auth.getSession().then(
+  async function({ data, error }) {
+
+    if (error) {
+
+      showMessage(error.message, true);
+
+      return;
+
+    }
+
+    if (data.session) {
+
+      const allowed = await checkOwner();
+
+      if (allowed) {
+
+        await refreshDashboard();
+
+      }
+
+    }
+
+  }
+);
+
+})();
+</script>
+
+</body>
+</html>
